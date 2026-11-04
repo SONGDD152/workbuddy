@@ -1,0 +1,337 @@
+// 个人多频道平台 —— 数据库表设计（PostgreSQL / Vercel Postgres 同构）
+// 运行：docker compose up -d && npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ClothingType {
+  TOP
+  BOTTOM
+  SKIRT
+  OUTER
+  SHOE
+  HAT
+  ACCESSORY
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  AUTUMN
+  WINTER
+}
+
+enum Occasion {
+  COMMUTE
+  SPORT
+  FORMAL
+  CASUAL
+}
+
+enum StorageCategory {
+  APPLIANCE
+  TOOL
+  DAILY
+  MEDICINE
+  DOCUMENT
+  SEASONAL
+  OTHER
+}
+
+enum ProgressStatus {
+  ONGOING
+  DONE
+  PAUSED
+}
+
+enum PlantStatus {
+  GROWING
+  READY
+  COMPLETED
+  FAILED
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  travels      Travel[]
+  clothings    Clothing[]
+  storageItems StorageItem[]
+  outfitFeedbacks OutfitFeedback[]
+  foodRecords  FoodRecord[]
+  hobbies      Hobby[]
+  gardenPlants GardenPlant[]
+  books        Book[]
+  movies       Movie[]
+  studies      Study[]
+  diaries      Diary[]
+}
+
+// ===== 生活 · 旅行 =====
+model Travel {
+  id          String     @id @default(cuid())
+  userId      String
+  title       String
+  date        DateTime
+  location    String?
+  description String?
+  images      String[]   @default([])
+  visibility  Visibility @default(PRIVATE)
+  createdAt   DateTime   @default(now())
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+// ===== 生活 · 衣橱 =====
+model Clothing {
+  id        String     @id @default(cuid())
+  userId    String
+  name      String
+  type      ClothingType
+  seasons   Season[]   @default([])
+  occasions Occasion[] @default([])
+  color     String?
+  image     String?
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// 穿搭推荐记忆反馈（风格偏好权重）
+model OutfitFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  comboKey  String // 例如 "TOP:1|BOTTOM:2|SHOE:3"
+  adopted   Boolean
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ===== 生活 · 家庭仓储 =====
+model StorageItem {
+  id          String          @id @default(cuid())
+  userId      String
+  name        String
+  category    StorageCategory
+  room        String? // 房间，如「阳台」
+  position    String? // 具体位置，如「右侧柜子第二层」
+  barcode     String? // 条码/二维码
+  image       String?
+  note        String?
+  visibility  Visibility      @default(PRIVATE)
+  createdAt   DateTime        @default(now())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([barcode])
+}
+
+// ===== 生活 · 餐饮 =====
+model FoodRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  meal       MealType
+  name       String
+  note       String? // 做法备注
+  calories   Int?
+  image      String?
+  recordedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
+
+// ===== 生活 · 兴趣爱好 =====
+model Hobby {
+  id         String         @id @default(cuid())
+  userId     String
+  name       String
+  visibility Visibility     @default(PRIVATE)
+  createdAt  DateTime       @default(now())
+  entries    HobbyEntry[]
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model HobbyEntry {
+  id        String         @id @default(cuid())
+  hobbyId   String
+  content   String
+  status    ProgressStatus @default(ONGOING)
+  image     String?
+  createdAt DateTime       @default(now())
+  hobby     Hobby          @relation(fields: [hobbyId], references: [id], onDelete: Cascade)
+
+  @@index([hobbyId])
+}
+
+// ===== 生活 · 园艺（兴趣子领域）=====
+model Vegetable {
+  id           String   @id @default(cuid())
+  userId       String?
+  name         String
+  growDays     Int // 标准生长周期（天）
+  suitableTerm String? // 适宜节气
+  tag          String? // 喜温/耐寒
+  isCustom     Boolean  @default(false)
+
+  @@index([userId])
+}
+
+model GardenPlant {
+  id          String      @id @default(cuid())
+  userId      String
+  vegetable   String // 菜名（可来自菜库）
+  seedDate    DateTime // 播种日
+  method      String? // 播种/移栽苗
+  location    String? // 阳台/露台/菜地/盆编号
+  status      PlantStatus @default(GROWING)
+  note        String? // 时间线备注
+  estHarvest  DateTime? // 预计成熟（可手动修正）
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ===== 图书馆 · 读书 =====
+model Book {
+  id         String     @id @default(cuid())
+  userId     String
+  title      String
+  author     String?
+  type       String? // 书籍类型
+  visibility Visibility @default(PRIVATE)
+  createdAt  DateTime   @default(now())
+  notes      BookNote[]
+  report     BookReport?
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BookNote {
+  id        String   @id @default(cuid())
+  bookId    String
+  content   String
+  createdAt DateTime @default(now())
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+}
+
+model BookReport {
+  id        String   @id @default(cuid())
+  bookId    String   @unique
+  content   String // Markdown
+  score     Int?
+  summary   String?
+  createdAt DateTime @default(now())
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+}
+
+// ===== 图书馆 · 影评 =====
+model Movie {
+  id         String     @id @default(cuid())
+  userId     String
+  title      String
+  genre      String?
+  visibility Visibility @default(PRIVATE)
+  createdAt  DateTime   @default(now())
+  notes      MovieNote[]
+  report     MovieReport?
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MovieNote {
+  id        String   @id @default(cuid())
+  movieId   String
+  content   String
+  createdAt DateTime @default(now())
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@index([movieId])
+}
+
+model MovieReport {
+  id        String   @id @default(cuid())
+  movieId   String   @unique
+  content   String
+  score     Int?
+  summary   String?
+  createdAt DateTime @default(now())
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+}
+
+// ===== 图书馆 · 专业学习 =====
+model Study {
+  id         String         @id @default(cuid())
+  userId     String
+  topic      String
+  status     ProgressStatus @default(ONGOING)
+  visibility Visibility     @default(PRIVATE)
+  createdAt  DateTime       @default(now())
+  notes      StudyNote[]
+  report     StudyReport?
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model StudyNote {
+  id        String   @id @default(cuid())
+  studyId   String
+  content   String
+  createdAt DateTime @default(now())
+  study     Study    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+
+  @@index([studyId])
+}
+
+model StudyReport {
+  id        String   @id @default(cuid())
+  studyId   String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  study     Study    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+}
+
+// ===== 图书馆 · 日记 =====
+model Diary {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}

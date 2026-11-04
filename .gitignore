@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.next*/
+out/
+public/uploads/
+.env
+.env.local
+.env*.local
+*.log
+*.tsbuildinfo
+.workbuddy/
+.DS_Store

@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 250 250 249;
+  --surface: 255 255 255;
+  --surface-2: 245 245 244;
+  --border: 231 229 228;
+  --fg: 28 25 23;
+  --muted: 120 113 108;
+  --brand: 217 119 6; /* amber-600，杂志暖调 */
+  --brand-fg: 255 255 255;
+}
+
+.dark {
+  --bg: 12 11 10;
+  --surface: 24 22 20;
+  --surface-2: 32 29 26;
+  --border: 46 42 38;
+  --fg: 245 242 238;
+  --muted: 161 154 146;
+  --brand: 245 158 11; /* amber-500 */
+  --brand-fg: 24 22 20;
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 触控最小点击区域 */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* 卡片悬浮微交互：轻微抬升 + 阴影 + 边框高亮 */
+.card-hover {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px -12px rgb(0 0 0 / 0.18);
+  border-color: rgb(var(--brand));
+}
+
+/* 细滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 9999px;
+}
+
+/* 隐藏滚动条（轮播/横向滚动） */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 无障碍：尊重「减少动态效果」系统偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
