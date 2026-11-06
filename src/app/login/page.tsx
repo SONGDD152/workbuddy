@@ -41,12 +41,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-      <Card className="w-full max-w-sm">
-        <h1 className="mb-1 text-2xl font-bold">
+    <div className="login-theme flex min-h-screen min-h-[100dvh] items-center justify-center px-4 py-10">
+      <Card className="login-card w-full max-w-sm animate-fade-in-up">
+        <div className="mb-4 flex justify-center">
+          {/* 本地静态图标，用原始 img 避免图片优化与 PWA 缓存差异 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icons/icon-192.png"
+            alt="小白管家"
+            width={76}
+            height={76}
+            className="login-logo h-[76px] w-[76px] object-cover"
+          />
+        </div>
+        <h1 className="mb-1 text-center text-2xl font-bold tracking-tight">
           {mode === "login" ? "登录" : "注册"}
         </h1>
-        <p className="mb-5 text-sm text-muted">小白管家 · 个人生活空间</p>
+        <p className="mb-6 text-center text-sm text-muted">
+          小白管家 · 个人生活空间
+        </p>
 
         {mode === "register" && (
           <div className="mb-3">
@@ -77,9 +90,9 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
+        {error && <p className="login-error mb-3 text-sm">{error}</p>}
 
-        <Button className="w-full" onClick={submit} disabled={loading}>
+        <Button className="login-submit w-full" onClick={submit} disabled={loading}>
           {loading ? "处理中…" : mode === "login" ? "登录" : "注册并登录"}
         </Button>
 

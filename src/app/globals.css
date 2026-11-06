@@ -24,6 +24,69 @@
   --brand-fg: 24 22 20;
 }
 
+/* ------------------------------------------------------------------
+ * 登录页专属配色：与「小白管家」应用图标同源
+ *   天空 #e1eff7 · 房子浅蓝 #b9daee · 蓝描边 #82adcf · 草地 #bed9a1
+ *   小狗白 #ffffff · 眼睛深蓝灰 #284152 · 状态栏/主题蓝 #5aa9e6
+ * 变量定义在 .login-theme 容器上（就近覆盖继承值），因此用户开启深色
+ * 模式时登录页仍保持浅蓝亮色 —— 与图标、App 冷启动窗口底色一致，不闪黑。
+ * 作用域仅限登录页，站内其他页面原有的暖色主题完全不受影响。
+ * ------------------------------------------------------------------ */
+.login-theme {
+  --bg: 225 239 247;
+  --surface: 255 255 255;
+  --surface-2: 240 247 252;
+  --border: 207 227 240;
+  --fg: 40 65 82;
+  --muted: 96 125 145;
+  /* 比状态栏的 #5aa9e6 深一档、同色相：白字对比度 4.5:1，兼顾可读与清新 */
+  --brand: 47 124 181;
+  --brand-fg: 255 255 255;
+
+  color-scheme: light;
+  color: rgb(var(--fg));
+  background-color: rgb(var(--bg));
+  background-image:
+    radial-gradient(105% 42% at 50% 108%, rgba(190, 217, 161, 0.42) 0%, rgba(190, 217, 161, 0) 68%),
+    radial-gradient(85% 55% at 12% -8%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, #eaf6fc 0%, #e1eff7 52%, #dcecf6 100%);
+}
+
+.login-theme .login-card {
+  border-color: rgba(130, 173, 207, 0.38);
+  border-radius: 1.5rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow:
+    0 22px 50px -26px rgba(38, 96, 140, 0.45),
+    0 2px 10px rgba(38, 96, 140, 0.06);
+}
+
+/* 图标本身带淡蓝底，用一圈白边把它从浅蓝背景里托起来 */
+.login-theme .login-logo {
+  border-radius: 24px;
+  outline: 3px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 22px -12px rgba(38, 96, 140, 0.65);
+}
+
+.login-theme input:focus {
+  border-color: #5aa9e6;
+  box-shadow: 0 0 0 3px rgba(90, 169, 230, 0.18);
+}
+
+.login-theme .login-submit {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0) 55%
+  );
+  box-shadow: 0 10px 20px -12px rgba(47, 124, 181, 0.95);
+}
+
+/* 错误提示改用柔和莓红，呼应图标的粉色腮红，避免正红破坏冷色调 */
+.login-theme .login-error {
+  color: #b8526b;
+}
+
 * {
   border-color: rgb(var(--border));
 }
