@@ -74,7 +74,7 @@ jobs:
         run: |
           VERSION=$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android-native/app/build.gradle | head -1)
           TAG="v${VERSION}"
-          ASSET="xiaobaiguanjia-${VERSION}.apk"
+          ASSET="xiaobaiguanjia-v${VERSION}.apk"
           APK="android-native/app/build/outputs/apk/release/app-release.apk"
           cp "$APK" "/tmp/${ASSET}"
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -85,4 +85,10 @@ jobs:
               --notes "小白管家 Android 安装包 v${VERSION}。签名密钥与旧版一致，可直接覆盖安装。"
           fi
           gh release upload "$TAG" "/tmp/${ASSET}#${ASSET}" --clobber
+          # 清掉历史构建留下的其它同名版本资产，避免 Release 里出现两个包
+          for name in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+            if [ "$name" != "$ASSET" ]; then
+              gh release delete-asset "$TAG" "$name" -y || true
+            fi
+          done
           echo "已发布 https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
