@@ -19,6 +19,7 @@
   },
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
+  "minSdkVersion": 24,
   "webManifestUrl": "https://songdd.online/manifest.webmanifest",
   "enableNotifications": false
 }
