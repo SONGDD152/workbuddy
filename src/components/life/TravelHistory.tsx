@@ -189,14 +189,19 @@ export function TravelHistory({
       </div>
 
       {/* 统计（始终反映全部数据） */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm text-muted">
             <CalendarDays size={16} className="text-brand" /> 一共旅行
           </div>
-          <p className="mt-1 text-3xl font-bold">
-            {stats.total} <span className="text-base font-normal text-muted">次</span>
-          </p>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="text-3xl font-bold">
+              {stats.total} <span className="text-base font-normal text-muted">次</span>
+            </p>
+            <p className="text-sm text-muted">
+              平均每年 <span className="text-lg font-semibold text-fg">{stats.avg.toFixed(1)}</span> 次
+            </p>
+          </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm text-muted">
@@ -204,14 +209,6 @@ export function TravelHistory({
           </div>
           <p className="mt-1 text-lg font-semibold">
             {stats.from ? fmtDate(stats.from) : "—"}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-sm text-muted">
-            <Sparkles size={16} className="text-brand" /> 平均每年
-          </div>
-          <p className="mt-1 text-3xl font-bold">
-            {stats.avg.toFixed(1)} <span className="text-base font-normal text-muted">次</span>
           </p>
         </Card>
       </div>
