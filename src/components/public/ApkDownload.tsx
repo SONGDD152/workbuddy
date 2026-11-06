@@ -17,18 +17,19 @@ import {
  * v1.1.0 起改用原生 WebView 外壳，不依赖 Chrome / Custom Tabs；
  * v1.2.0 起去掉启动封面，冷启动直接落到登录页（已登录则直达主界面）；
  * v1.3.0 起在原生层加系统指纹/面容解锁闸门（仅 Android 安装包）。
+ * v1.4.0 补齐 CAMERA 权限与网页摄像头授权回调，App 内扫码 / 拍照可用。
  *
  * 版本升级时同步改三处：public/downloads/ 下的文件、下面的 APK 常量、
  * scripts/generate-pwa-assets.py 的 APK_URL（并重跑二维码）。
  */
 const APK = {
-  file: "xiaobaiguanjia-v1.3.0.apk",
-  href: "/downloads/xiaobaiguanjia-v1.3.0.apk",
-  version: "1.3.0",
-  size: "105 KB",
+  file: "xiaobaiguanjia-v1.4.0.apk",
+  href: "/downloads/xiaobaiguanjia-v1.4.0.apk",
+  version: "1.4.0",
+  size: "106 KB",
   packageId: "online.songdd.xbgj",
   releaseUrl:
-    "https://github.com/SONGDD152/workbuddy/releases/download/v1.3.0/xiaobaiguanjia-v1.3.0.apk",
+    "https://github.com/SONGDD152/workbuddy/releases/download/v1.4.0/xiaobaiguanjia-v1.4.0.apk",
 };
 
 const INSTALL_URL = "https://songdd.online/install";
@@ -144,11 +145,12 @@ export function ApkDownload() {
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted">
-            <strong className="font-medium text-fg">没有启动封面</strong>：首次打开是登录界面，登录后记住状态；
-            之后冷启动先弹系统指纹或面容验证，通过就直接进主界面，跟微信一样。
+            <strong className="font-medium text-fg">启动时有一幅日出插画</strong>：只在真实加载期间出现，
+            页面就绪就进登录界面（已登录则直接进主界面）；登录后记住状态，之后冷启动先弹系统指纹或面容验证。
             验证之前不加载任何页面；没录入指纹、设备不支持或识别硬件异常时会自动跳过，不会把人锁死。
             仍是独立全屏窗口，没有地址栏，也不会跳到浏览器，国产手机不装 Chrome 也能用。
             内容来自 songdd.online，网页一更新 App 里同步生效。
+            这一版补上了摄像头授权，扫码和拍照可以直接用了。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
             <a
@@ -188,6 +190,7 @@ export function ApkDownload() {
               指纹/面容是<strong className="font-medium text-fg">本地解锁</strong>：验证的是这台设备面前的人能不能看已登录的会话，
               不是用指纹代替密码，换设备或点「改用密码登录」后仍需用邮箱密码登录一次；密码不会保存在设备上。
               需要 Android 9 及以上且已录入指纹/面容，网页版、iPhone 和电脑暂不提供此能力。
+              首次点「扫码」或「拍照」时系统会请求摄像头权限，允许即可；不授权也能用「从相册识别」和手动输入条码。
               外壳是原生窗口，但里面的界面仍是网站本身（不是原生控件）——不会有地址栏，也不会跳浏览器。
               包名 {APK.packageId}，签名一致时新版本可直接覆盖安装。
             </span>

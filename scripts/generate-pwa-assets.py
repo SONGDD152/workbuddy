@@ -37,7 +37,7 @@ ICONS.mkdir(parents=True, exist_ok=True)
 SITE_URL = "https://songdd.online"
 INSTALL_URL = f"{SITE_URL}/install"
 # 扫码直接下载签名 APK（原生 WebView 壳）。版本升级时需同步替换 public/downloads/ 下的文件并更新此文件名。
-APK_URL = f"{SITE_URL}/downloads/xiaobaiguanjia-v1.3.0.apk"
+APK_URL = f"{SITE_URL}/downloads/xiaobaiguanjia-v1.4.0.apk"
 
 EDGE = (110, 170, 215, 70)  # squircle 内缘极淡蓝描边
 
