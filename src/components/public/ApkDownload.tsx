@@ -15,19 +15,20 @@ import {
  * 因此在微信内不渲染下载按钮，改为引导到系统浏览器。
  *
  * v1.1.0 起改用原生 WebView 外壳，不依赖 Chrome / Custom Tabs；
- * v1.2.0 起去掉启动封面，冷启动直接落到登录页（已登录则直达主界面）。
+ * v1.2.0 起去掉启动封面，冷启动直接落到登录页（已登录则直达主界面）；
+ * v1.3.0 起在原生层加系统指纹/面容解锁闸门（仅 Android 安装包）。
  *
  * 版本升级时同步改三处：public/downloads/ 下的文件、下面的 APK 常量、
  * scripts/generate-pwa-assets.py 的 APK_URL（并重跑二维码）。
  */
 const APK = {
-  file: "xiaobaiguanjia-v1.2.0.apk",
-  href: "/downloads/xiaobaiguanjia-v1.2.0.apk",
-  version: "1.2.0",
-  size: "101 KB",
+  file: "xiaobaiguanjia-v1.3.0.apk",
+  href: "/downloads/xiaobaiguanjia-v1.3.0.apk",
+  version: "1.3.0",
+  size: "105 KB",
   packageId: "online.songdd.xbgj",
   releaseUrl:
-    "https://github.com/SONGDD152/workbuddy/releases/download/v1.2.0/xiaobaiguanjia-v1.2.0.apk",
+    "https://github.com/SONGDD152/workbuddy/releases/download/v1.3.0/xiaobaiguanjia-v1.3.0.apk",
 };
 
 const INSTALL_URL = "https://songdd.online/install";
@@ -35,7 +36,8 @@ const INSTALL_URL = "https://songdd.online/install";
 const apkSteps = [
   "点「下载 APK 安装包」或扫左侧二维码，等文件下载完成",
   "打开下载的文件，系统提示「未知来源」时允许本次安装",
-  "装过旧版可直接覆盖，不用卸载；主屏幕点「小白管家」打开",
+  "装过旧版可直接覆盖，不用卸载；首次仍需用邮箱密码登录一次",
+  "之后冷启动会先弹系统指纹/面容验证，通过就直接进主界面",
 ];
 
 export function ApkDownload() {
@@ -142,8 +144,9 @@ export function ApkDownload() {
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted">
-            <strong className="font-medium text-fg">没有启动封面</strong>：点开图标直接就是登录界面，
-            登录过会记住状态、直接进主界面，跟微信一样不用每次输密码。
+            <strong className="font-medium text-fg">没有启动封面</strong>：首次打开是登录界面，登录后记住状态；
+            之后冷启动先弹系统指纹或面容验证，通过就直接进主界面，跟微信一样。
+            验证之前不加载任何页面；没录入指纹、设备不支持或识别硬件异常时会自动跳过，不会把人锁死。
             仍是独立全屏窗口，没有地址栏，也不会跳到浏览器，国产手机不装 Chrome 也能用。
             内容来自 songdd.online，网页一更新 App 里同步生效。
           </p>
@@ -182,7 +185,10 @@ export function ApkDownload() {
             <Info size={14} className="mt-0.5 shrink-0 text-brand" />
             <span>
               请用系统浏览器或相机扫码，微信内下载会被改名成 .apk.1 而装不上；首次安装系统提示「未知来源」时允许本次即可。
-              启动直接进登录页，已登录则直达主界面；外壳是原生窗口，但里面的界面仍是网站本身（不是原生控件）——不会有地址栏，也不会跳浏览器。
+              指纹/面容是<strong className="font-medium text-fg">本地解锁</strong>：验证的是这台设备面前的人能不能看已登录的会话，
+              不是用指纹代替密码，换设备或点「改用密码登录」后仍需用邮箱密码登录一次；密码不会保存在设备上。
+              需要 Android 9 及以上且已录入指纹/面容，网页版、iPhone 和电脑暂不提供此能力。
+              外壳是原生窗口，但里面的界面仍是网站本身（不是原生控件）——不会有地址栏，也不会跳浏览器。
               包名 {APK.packageId}，签名一致时新版本可直接覆盖安装。
             </span>
           </p>
