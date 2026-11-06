@@ -6,6 +6,12 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  async rewrites() {
+    return [
+      // 点开头目录在部分部署环境下会被静态服务忽略，这里兜底映射到普通路径
+      { source: "/.well-known/assetlinks.json", destination: "/assetlinks.json" },
+    ];
+  },
   async headers() {
     return [
       {

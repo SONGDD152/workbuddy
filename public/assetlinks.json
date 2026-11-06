@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "online.songdd.xbgj",
+      "sha256_cert_fingerprints": [
+        "AD:C4:34:F1:BF:72:49:B2:21:AD:8D:D9:F7:F0:DC:49:D0:F5:D9:F6:82:06:99:B0:E4:B9:D8:E0:18:5B:CB:80"
+      ]
+    }
+  }
+]
