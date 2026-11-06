@@ -14,20 +14,20 @@ import {
  * 微信会把 .apk 改名成 .apk.1，导致系统识别不出、显示成「?」文件，
  * 因此在微信内不渲染下载按钮，改为引导到系统浏览器。
  *
- * v1.1.0 起改用原生 WebView 外壳：不依赖 Chrome / Custom Tabs，
- * 国产安卓机打开也是独立全屏窗口，不会退化成浏览器标签页。
+ * v1.1.0 起改用原生 WebView 外壳，不依赖 Chrome / Custom Tabs；
+ * v1.2.0 起去掉启动封面，冷启动直接落到登录页（已登录则直达主界面）。
  *
  * 版本升级时同步改三处：public/downloads/ 下的文件、下面的 APK 常量、
  * scripts/generate-pwa-assets.py 的 APK_URL（并重跑二维码）。
  */
 const APK = {
-  file: "xiaobaiguanjia-v1.1.0.apk",
-  href: "/downloads/xiaobaiguanjia-v1.1.0.apk",
-  version: "1.1.0",
-  size: "164 KB",
+  file: "xiaobaiguanjia-v1.2.0.apk",
+  href: "/downloads/xiaobaiguanjia-v1.2.0.apk",
+  version: "1.2.0",
+  size: "101 KB",
   packageId: "online.songdd.xbgj",
   releaseUrl:
-    "https://github.com/SONGDD152/workbuddy/releases/download/v1.1.0/xiaobaiguanjia-v1.1.0.apk",
+    "https://github.com/SONGDD152/workbuddy/releases/download/v1.2.0/xiaobaiguanjia-v1.2.0.apk",
 };
 
 const INSTALL_URL = "https://songdd.online/install";
@@ -142,9 +142,10 @@ export function ApkDownload() {
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted">
-            这一版是<strong className="font-medium text-fg">原生外壳安装包</strong>：启动有品牌画面，
-            打开就是独立全屏窗口，没有地址栏，也不会跳到浏览器，国产手机不装 Chrome 也能用。
-            内容仍来自 songdd.online，网页一更新 App 里同步生效，不用重新下载。
+            <strong className="font-medium text-fg">没有启动封面</strong>：点开图标直接就是登录界面，
+            登录过会记住状态、直接进主界面，跟微信一样不用每次输密码。
+            仍是独立全屏窗口，没有地址栏，也不会跳到浏览器，国产手机不装 Chrome 也能用。
+            内容来自 songdd.online，网页一更新 App 里同步生效。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
             <a
@@ -181,7 +182,7 @@ export function ApkDownload() {
             <Info size={14} className="mt-0.5 shrink-0 text-brand" />
             <span>
               请用系统浏览器或相机扫码，微信内下载会被改名成 .apk.1 而装不上；首次安装系统提示「未知来源」时允许本次即可。
-              外壳是原生窗口，但里面的界面仍是网站本身（不是原生控件）——不会有地址栏，也不会跳浏览器。
+              启动直接进登录页，已登录则直达主界面；外壳是原生窗口，但里面的界面仍是网站本身（不是原生控件）——不会有地址栏，也不会跳浏览器。
               包名 {APK.packageId}，签名一致时新版本可直接覆盖安装。
             </span>
           </p>
