@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // 图片在浏览器压缩成 data URL 后随表单提交，默认 1MB 不够用。
+    // 单张压到约 100KB，4MB 足够一次提交多张（Vercel 函数请求体上限约 4.5MB）。
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

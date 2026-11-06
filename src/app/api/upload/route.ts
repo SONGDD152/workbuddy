@@ -1,30 +1,21 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import { getUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
-  // 上传接口必须要求登录，避免未授权写入
-  const uid = await getUserId();
-  if (!uid) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  try {
-    const form = await req.formData();
-    const file = form.get("file") as File | null;
-    if (!file) return NextResponse.json({ error: "no file" }, { status: 400 });
-
-    const ext = file.name.split(".").pop() || "jpg";
-    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const dir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(dir, { recursive: true });
-    const buf = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(path.join(dir, name), buf);
-
-    // 生产环境建议替换为 Vercel Blob / Cloudinary 上传，这里用本地目录作为开发态
-    return NextResponse.json({ url: `/uploads/${name}` });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
-  }
+/**
+ * 旧的文件上传接口，已停用。
+ *
+ * 站点跑在 Vercel：文件系统只读、实例无状态，往 public/uploads 写文件
+ * 会直接 500；就算本地写成功，部署后文件也不存在。图片现在由
+ * src/components/ImageField.tsx 在浏览器里压缩成 WebP data URL，
+ * 随表单一起存进数据库，刷新与重新部署都不丢。
+ *
+ * 保留这个明确的 410，是为了让缓存了旧版 JS 的页面得到可读的原因，
+ * 而不是一个看不懂的 500；新版本已不再请求这里。
+ */
+export async function POST() {
+  return NextResponse.json(
+    { error: "此上传方式已停用，请刷新页面后重新选图（新版本会直接压缩保存）" },
+    { status: 410 }
+  );
 }

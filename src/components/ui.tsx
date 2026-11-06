@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 import { X } from "lucide-react";
 
 export function Button({
@@ -163,27 +164,33 @@ export function Modal({
   title?: string;
   children: React.ReactNode;
 }) {
+  // 键盘弹出时把遮罩底边抬到键盘上沿；max-h-full 让弹窗永远不超过可视区，
+  // 顶部圆角、标题和关闭按钮因此始终完整可见，只有表单内容区滚动。
+  const keyboardInset = useKeyboardInset(open);
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-x-0 top-0 z-50 flex items-end justify-center overflow-hidden bg-black/40 px-0 pb-0 pt-4 sm:items-center sm:p-4"
+      style={{ bottom: keyboardInset }}
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-2xl bg-surface p-5 shadow-xl sm:animate-fade-in sm:rounded-2xl"
+        className="flex max-h-full w-full max-w-lg flex-col animate-slide-up overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:animate-fade-in sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="text-base font-semibold">{title}</h3>
           <button
-            className="tap rounded-lg p-1 text-muted hover:bg-surface-2"
+            className="tap -mr-2 rounded-lg p-2 text-muted hover:bg-surface-2"
             onClick={onClose}
             aria-label="关闭"
           >
             <X size={18} />
           </button>
         </div>
-        {children}
+        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-5 pb-5 pt-4">
+          {children}
+        </div>
       </div>
     </div>
   );

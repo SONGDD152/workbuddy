@@ -1,8 +1,10 @@
 package online.songdd.xbgj;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.hardware.biometrics.BiometricPrompt;
@@ -18,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebChromeClient.FileChooserParams;
@@ -62,10 +65,11 @@ public class MainActivity extends Activity {
     private static final String HOST = "songdd.online";
     private static final String LAUNCH_URL = SITE + "/app-launch";
     private static final int REQ_FILE = 1001;
+    private static final int REQ_CAMERA = 1002;
     private static final int BG_COLOR = Color.parseColor("#e1eff7");
     private static final int BRAND_COLOR = Color.parseColor("#5aa9e6");
     private static final int TEXT_COLOR = Color.parseColor("#284152");
-    private static final int MUTED_COLOR = Color.parseColor("#607d91");
+    private static final int MUTED_COLOR = Color.parseColor("#547187");
     private static final int LINK_COLOR = Color.parseColor("#2f7cb5");
     /** 离开 App 超过这个时长再回来才重新上锁，避免切个消息就要按指纹。 */
     private static final long RELOCK_AFTER_MS = 5L * 60L * 1000L;
@@ -75,6 +79,7 @@ public class MainActivity extends Activity {
     private View lockScreen;
     private TextView lockHint;
     private ValueCallback<Uri[]> filePathCallback;
+    private PermissionRequest pendingCameraRequest;
     private CancellationSignal bioCancel;
     private boolean landed = false;
     private boolean pageLoaded = false;
@@ -131,7 +136,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         // 站点据此识别「这是 App 内」，隐藏网页版专属的返回主页等出口
         String baseUa = s.getUserAgentString();
-        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.3.0");
+        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.4.0");
         web.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
         web.setWebViewClient(new WebViewClient() {
@@ -171,13 +176,13 @@ public class MainActivity extends Activity {
                 if (!request.isForMainFrame()) return;
                 String html = "<!doctype html><html><head>"
                         + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                        + "<style>body{margin:0;background:#e1eff7;color:#1c1917;"
+                        + "<style>body{margin:0;background:#e1eff7;color:#284152;"
                         + "font-family:sans-serif;display:flex;align-items:center;"
                         + "justify-content:center;min-height:100vh;text-align:center}"
                         + ".box{padding:32px}h1{font-size:20px}"
-                        + "p{font-size:14px;color:#57534e;line-height:1.8}"
+                        + "p{font-size:14px;color:#547187;line-height:1.8}"
                         + "button{margin-top:20px;border:0;border-radius:999px;"
-                        + "background:#5aa9e6;color:#fff;padding:12px 28px;font-size:15px}"
+                        + "background:#2f7cb5;color:#fff;padding:12px 28px;font-size:15px}"
                         + "</style></head><body><div class=\"box\">"
                         + "<h1>暂时连不上</h1>"
                         + "<p>检查网络后重试。<br>小白管家需要联网才能加载内容。</p>"
@@ -205,6 +210,37 @@ public class MainActivity extends Activity {
                 } catch (Exception e) {
                     filePathCallback = null;
                     return false;
+                }
+            }
+
+            /**
+             * 网页调 getUserMedia 时，Android 会先问宿主 App 放不放行。
+             * 不重写这个方法，WebView 默认一律拒绝 —— 这正是 App 内
+             * 「扫码」打不开摄像头的原因。这里只放行本站发起的摄像头
+             * 请求，且只授予 VIDEO_CAPTURE，麦克风等其它权限不给。
+             */
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                Uri origin = request.getOrigin();
+                boolean fromSite = origin != null && HOST.equals(origin.getHost());
+                boolean wantsCamera = false;
+                for (String r : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) wantsCamera = true;
+                }
+                if (!fromSite || !wantsCamera) {
+                    request.deny();
+                    return;
+                }
+                if (checkSelfPermission(Manifest.permission.CAMERA)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+                        }
+                    });
+                } else {
+                    pendingCameraRequest = request;
+                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
                 }
             }
         });
@@ -430,6 +466,23 @@ public class MainActivity extends Activity {
             }
             filePathCallback.onReceiveValue(result);
             filePathCallback = null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_CAMERA && pendingCameraRequest != null) {
+            PermissionRequest r = pendingCameraRequest;
+            pendingCameraRequest = null;
+            boolean granted = grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                r.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
+            } else {
+                r.deny(); // 用户拒绝也没关系，扫码页仍有相册识别 / 手动输入兜底
+            }
         }
     }
 

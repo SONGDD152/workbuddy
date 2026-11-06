@@ -24,6 +24,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 
 type Item = { href: string; label: string; icon: React.FC<any> };
 type Group = { label: string; icon: React.FC<any>; href: string; items: Item[] };
@@ -157,6 +158,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = React.useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  // 软键盘弹出时底部 Tab 会被顶到键盘上方，白占 50 多像素，先收起来
+  const keyboardInset = useKeyboardInset();
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -229,7 +232,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* 移动端底部 Tab */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-border bg-surface lg:hidden">
+      <nav
+        className={cn(
+          "fixed bottom-0 left-0 right-0 z-30 flex border-t border-border bg-surface lg:hidden",
+          keyboardInset > 0 && "hidden"
+        )}
+      >
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = isActive(pathname, t.href);

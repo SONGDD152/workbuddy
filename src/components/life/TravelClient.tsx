@@ -169,42 +169,56 @@ export function TravelClient({ initial }: { initial: Travel[] }) {
       ))}
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "编辑记录" : "新建旅行记录"}>
-        <div className="space-y-3">
+        <div className="space-y-5">
           <div>
-            <label className="mb-1 block text-sm">标题</label>
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <label className="mb-2 block text-sm font-medium text-muted">标题</label>
+            <Input
+              placeholder="给这段旅程起个名字"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
             <div>
-              <label className="mb-1 block text-sm">日期</label>
+              <label className="mb-2 block text-sm font-medium text-muted">日期</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm">地点</label>
-              <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm">描述</label>
-            <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm">照片（可多张）</label>
-            <div className="flex flex-wrap gap-2">
-              {form.images.map((img, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={img} className="h-20 w-20 rounded object-cover" alt="" />
-              ))}
-            </div>
-            <div className="mt-2">
-              <ImageField
-                value={undefined}
-                onChange={(url) => url && setForm({ ...form, images: [...form.images, url] })}
+              <label className="mb-2 block text-sm font-medium text-muted">地点</label>
+              <Input
+                placeholder="城市 / 景点"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm">可见性</label>
+            <label className="mb-2 block text-sm font-medium text-muted">描述</label>
+            <Textarea
+              rows={2}
+              placeholder="写点当时的感受…"
+              className="resize-y"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-muted">照片（可多张）</label>
+            {form.images.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2.5">
+                {form.images.map((img, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={img} className="h-20 w-20 rounded-xl object-cover" alt="" />
+                ))}
+              </div>
+            )}
+            <ImageField
+              value={undefined}
+              onChange={(url) => url && setForm({ ...form, images: [...form.images, url] })}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-muted">可见性</label>
             <Select
               value={form.visibility}
               onChange={(e) => setForm({ ...form, visibility: e.target.value as any })}
@@ -213,7 +227,7 @@ export function TravelClient({ initial }: { initial: Travel[] }) {
               <option value="PUBLIC">公开</option>
             </Select>
           </div>
-          <Button className="w-full" onClick={save} disabled={saving}>
+          <Button className="w-full py-2.5" onClick={save} disabled={saving}>
             {saving ? "保存中…" : "保存"}
           </Button>
         </div>
