@@ -11,7 +11,7 @@
  * 修改本文件后请递增 CACHE 版本号，旧缓存会在 activate 时清理。
  * ========================================================================== */
 
-const CACHE = "songdd-static-v1";
+const CACHE = "songdd-static-v2";
 const STATIC_PATHS = [
   "/_next/static/",
   "/icons/",
@@ -51,17 +51,16 @@ function offlinePage() {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>暂时离线 · 我的频道</title>
 <style>
-  :root{color-scheme:light dark}
+  :root{color-scheme:light}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
        font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-       background:#fafaf9;color:#1c1917;padding:24px;text-align:center}
+       background:#f7fdf9;color:#1c1917;padding:24px;text-align:center}
   .box{max-width:28rem}
-  .mark{font-size:2.5rem;color:#d97706}
+  .mark{font-size:2.5rem;color:#2e9e7b}
   h1{font-size:1.35rem;margin:1rem 0 .5rem}
-  p{color:#78716c;line-height:1.8;font-size:.95rem;margin:.25rem 0}
+  p{color:#6b7f76;line-height:1.8;font-size:.95rem;margin:.25rem 0}
   button{margin-top:1.75rem;padding:.7rem 1.6rem;border:0;border-radius:999px;
-         background:#d97706;color:#fff;font-size:.95rem;cursor:pointer}
-  @media (prefers-color-scheme:dark){body{background:#0c0b0a;color:#f5f2ee}p{color:#a19a92}}
+         background:#2e9e7b;color:#fff;font-size:.95rem;cursor:pointer}
 </style></head>
 <body><div class="box">
   <div class="mark">◆</div>

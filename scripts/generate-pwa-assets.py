@@ -8,10 +8,19 @@
 
 如果以后换了域名或想改图标配色，改下面的常量后重新运行，
 把 public/ 下生成的产物一起 git push 即可，Vercel 会自动发布。
+
+图标设计说明（亮色 · 清新风）：
+  - 淡薄荷白 squircle 底 + 青绿「圆角菱形环」+ 柔暖黄中心点，像嫩芽与花心，
+    也呼应站内的园艺 / 植物频道；沿用站点 ◆ 品牌符号的轮廓。
+  - 低饱和、通透、留白多；青绿在浅底上对比足够，小尺寸不发虚，暖黄点负责辨识度。
+  - 外缘用极淡青灰细描边，避免浅色图标在白色桌面背景上「糊成一片」。
+  - apple-touch-icon / favicon 必须满铺不透明：iOS 会把透明像素渲染成黑角。
+  - maskable 图形缩到中心安全区（顶点距中心 < 0.33 * size），避免被圆形遮罩裁掉。
+  - 改动图标后请同步递增 public/sw.js 里的 CACHE 版本，否则已安装设备仍读旧缓存。
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 import qrcode
 from qrcode.constants import ERROR_CORRECT_H
 
@@ -23,14 +32,35 @@ ICONS.mkdir(parents=True, exist_ok=True)
 SITE_URL = "https://songdd.online"
 INSTALL_URL = f"{SITE_URL}/install"
 
-BG_TOP = (41, 37, 33)       # 深墨
-BG_BOTTOM = (18, 16, 14)
-BRAND = (245, 158, 11)      # amber-500，与站点品牌色一致
-CUTOUT = (24, 21, 18)
+BG_TOP = (247, 253, 249)     # 淡薄荷白
+BG_BOTTOM = (226, 244, 234)  # 极淡青绿
+BG_MID = (237, 249, 242)     # 环内回填色，取渐变中段，肉眼无色差
+RING_INK = (31, 138, 106)    # 清新青绿，浅底上仍清晰
+DOT = (245, 190, 92)         # 柔暖黄花心，低饱和点睛
+EDGE = (31, 138, 106, 30)    # squircle 内缘极淡青灰描边
 
 
-def make_icon(size: int, maskable: bool = False) -> Image.Image:
-    """4 倍超采样绘制，缩放后得到平滑边缘。"""
+def _diamond(side: int, radius: int, fill: tuple) -> Image.Image:
+    """画一个旋转 45° 的圆角矩形，得到圆角菱形。"""
+    tile = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).rounded_rectangle(
+        (0, 0, side - 1, side - 1), radius=max(1, radius), fill=fill
+    )
+    return tile.rotate(45, resample=Image.BICUBIC, expand=True)
+
+
+def _center(canvas: Image.Image, layer: Image.Image) -> None:
+    x = (canvas.width - layer.width) // 2
+    y = (canvas.height - layer.height) // 2
+    canvas.alpha_composite(layer, (x, y))
+
+
+def make_icon(size: int, maskable: bool = False, opaque: bool = False) -> Image.Image:
+    """4 倍超采样绘制，缩放后得到平滑边缘。
+
+    maskable: 背景满铺且图形缩小，供 Android 圆形/方形遮罩裁切。
+    opaque:   背景满铺不透明（iOS / favicon 用），避免透明像素变黑角。
+    """
     s = size * 4
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
 
@@ -43,27 +73,42 @@ def make_icon(size: int, maskable: bool = False) -> Image.Image:
             fill=tuple(int(a + (b - a) * t) for a, b in zip(BG_TOP, BG_BOTTOM)),
         )
 
-    if maskable:
-        # Android 会按圆形/方形遮罩裁切，背景必须铺满整块，不能有透明边
+    radius = int(s * 0.22)
+    if maskable or opaque:
         mask = Image.new("L", (s, s), 255)
     else:
         mask = Image.new("L", (s, s), 0)
         ImageDraw.Draw(mask).rounded_rectangle(
-            (0, 0, s - 1, s - 1), radius=int(s * 0.22), fill=255
+            (0, 0, s - 1, s - 1), radius=radius, fill=255
         )
     img.paste(grad, (0, 0), mask)
 
-    cx = cy = s / 2
-    r = s * (0.20 if maskable else 0.27)
-    d = ImageDraw.Draw(img)
-    d.polygon(
-        [(cx, cy - r), (cx + r * 0.86, cy), (cx, cy + r), (cx - r * 0.86, cy)],
-        fill=BRAND + (255,),
-    )
-    ri = r * 0.30
-    d.polygon(
-        [(cx, cy - ri), (cx + ri * 0.86, cy), (cx, cy + ri), (cx - ri * 0.86, cy)],
-        fill=CUTOUT + (255,),
+    # 内缘高光：单独一层绘制，再用同一个 mask 裁掉圆角外的部分。
+    # maskable 会被系统按未知形状裁切，边缘装饰会残留成断弧，因此跳过。
+    if not maskable:
+        highlight = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+        inset = int(s * 0.006)
+        ImageDraw.Draw(highlight).rounded_rectangle(
+            (inset, inset, s - 1 - inset, s - 1 - inset),
+            radius=max(1, radius - inset),
+            outline=EDGE,
+            width=max(1, int(s * 0.006)),
+        )
+        highlight.putalpha(ImageChops.multiply(highlight.getchannel("A"), mask))
+        img.alpha_composite(highlight)
+
+    # 菱形环：金色外菱形 + 背景色内菱形回填，得到均匀的环
+    outer = int(s * (0.42 if maskable else 0.48))
+    ring = int(s * (0.0525 if maskable else 0.060))
+    inner = outer - ring * 2
+    _center(img, _diamond(outer, int(outer * 0.16), RING_INK + (255,)))
+    _center(img, _diamond(inner, int(inner * 0.16), BG_MID + (255,)))
+
+    # 中心暖黄花心，让环有焦点
+    dot = int(s * (0.048 if maskable else 0.055))
+    cx = cy = s // 2
+    ImageDraw.Draw(img).ellipse(
+        (cx - dot, cy - dot, cx + dot, cy + dot), fill=DOT + (255,)
     )
 
     return img.resize((size, size), Image.LANCZOS)
@@ -82,17 +127,17 @@ def make_qr(url: str, name: str) -> None:
 
 def main() -> None:
     print("生成应用图标：")
-    for filename, size, maskable in [
-        ("icon-192.png", 192, False),
-        ("icon-512.png", 512, False),
-        ("icon-maskable-512.png", 512, True),
-        ("apple-touch-icon.png", 180, False),
-        ("icon-64.png", 64, False),
+    for filename, size, maskable, opaque in [
+        ("icon-192.png", 192, False, False),
+        ("icon-512.png", 512, False, False),
+        ("icon-maskable-512.png", 512, True, False),
+        ("apple-touch-icon.png", 180, False, True),
+        ("icon-64.png", 64, False, False),
     ]:
-        make_icon(size, maskable).save(ICONS / filename, optimize=True)
-        print(f"  icons/{filename}: {size}x{size} maskable={maskable}")
+        make_icon(size, maskable, opaque).save(ICONS / filename, optimize=True)
+        print(f"  icons/{filename}: {size}x{size} maskable={maskable} opaque={opaque}")
 
-    favicon = make_icon(64).convert("RGBA")
+    favicon = make_icon(64, opaque=True).convert("RGB")
     favicon.save(PUBLIC / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
     print("  favicon.ico")
 
