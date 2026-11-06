@@ -54,7 +54,7 @@ export const profile = {
   ],
 
   /** 联系方式 */
-  email: "you@example.com",
+  email: "867137422@qq.com",
   github: "https://github.com/SONGDD152",
   gitee: "", // 没有可留空
   /** 页脚 */
