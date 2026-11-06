@@ -1,0 +1,24 @@
+{
+  "packageId": "online.songdd.xbgj",
+  "host": "songdd.online",
+  "name": "小白管家",
+  "launcherName": "小白管家",
+  "orientation": "any",
+  "themeColor": "#5aa9e6",
+  "themeColorDark": "#0c0b0a",
+  "navigationColor": "#5aa9e6",
+  "navigationColorDark": "#0c0b0a",
+  "backgroundColor": "#e1eff7",
+  "startUrl": "/",
+  "iconUrl": "https://songdd.online/icons/icon-512.png",
+  "maskableIconUrl": "https://songdd.online/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "xiaobaiguanjia"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "webManifestUrl": "https://songdd.online/manifest.webmanifest",
+  "enableNotifications": false
+}

@@ -11,3 +11,6 @@ public/uploads/
 *.tsbuildinfo
 .workbuddy/
 .DS_Store
+twa-build/
+android.keystore
+*.p12
