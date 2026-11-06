@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Download, MapPin, CalendarDays, Sparkles, Quote, MessageSquare } from "lucide-react";
 import { Card, Button, EmptyState, Select } from "@/components/ui";
 import { cn, fmtDate } from "@/lib/utils";
@@ -14,9 +15,43 @@ import type { TravelFormValue } from "@/components/life/TravelForm";
  * 支持全部 CSV 导出。
  */
 export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
-  const [tab, setTab] = React.useState<"records" | "reviews">("records");
-  const [year, setYear] = React.useState<string>("all");
-  const [loc, setLoc] = React.useState<string>("all");
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+
+  // 初始值从 URL 读取，使筛选/分区可分享、刷新不丢
+  const [tab, setTab] = React.useState<"records" | "reviews">(
+    sp.get("tab") === "reviews" ? "reviews" : "records"
+  );
+  const [year, setYear] = React.useState<string>(sp.get("year") || "all");
+  const [loc, setLoc] = React.useState<string>(sp.get("loc") || "all");
+
+  // 把筛选/分区状态同步回 URL（replace 不污染历史栈）
+  function syncUrl(y: string, l: string, t: "records" | "reviews") {
+    const params = new URLSearchParams();
+    if (y !== "all") params.set("year", y);
+    if (l !== "all") params.set("loc", l);
+    if (t !== "records") params.set("tab", t);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
+  const changeTab = (t: "records" | "reviews") => {
+    setTab(t);
+    syncUrl(year, loc, t);
+  };
+  const changeYear = (y: string) => {
+    setYear(y);
+    syncUrl(y, loc, tab);
+  };
+  const changeLoc = (l: string) => {
+    setLoc(l);
+    syncUrl(year, l, tab);
+  };
+  const clearFilters = () => {
+    setYear("all");
+    setLoc("all");
+    syncUrl("all", "all", tab);
+  };
 
   const stats = React.useMemo(() => {
     if (initial.length === 0) return { total: 0, from: null as Date | null, avg: 0 };
@@ -50,6 +85,17 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
     () => filtered.filter((t) => (t.review ?? "").trim().length > 0),
     [filtered]
   );
+
+  // 心得时间线按年份分组（年份筛选已作用于 reviewItems，这里再按年排布）
+  const reviewGroups = React.useMemo(() => {
+    const map = new Map<number, TravelFormValue[]>();
+    for (const t of reviewItems) {
+      const y = new Date(t.date ?? Date.now()).getFullYear();
+      if (!map.has(y)) map.set(y, []);
+      map.get(y)!.push(t);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[0] - a[0]);
+  }, [reviewItems]);
 
   function exportCsv() {
     const header = ["日期", "地点", "标题", "旅行记录", "回看心得"];
@@ -115,7 +161,7 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
       <div className="inline-flex rounded-xl border border-border bg-surface p-1 text-sm">
         <button
           type="button"
-          onClick={() => setTab("records")}
+          onClick={() => changeTab("records")}
           className={cn(
             "rounded-lg px-4 py-1.5 font-medium transition",
             tab === "records" ? "bg-brand text-brand-fg" : "text-muted hover:text-fg"
@@ -125,7 +171,7 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
         </button>
         <button
           type="button"
-          onClick={() => setTab("reviews")}
+          onClick={() => changeTab("reviews")}
           className={cn(
             "rounded-lg px-4 py-1.5 font-medium transition",
             tab === "reviews" ? "bg-brand text-brand-fg" : "text-muted hover:text-fg"
@@ -135,9 +181,9 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
         </button>
       </div>
 
-      {/* 筛选（两个 tab 共用） */}
+      {/* 筛选（两个 tab 共用，且持久化到 URL） */}
       <div className="flex flex-wrap gap-2">
-        <Select value={year} onChange={(e) => setYear(e.target.value)} className="sm:w-40">
+        <Select value={year} onChange={(e) => changeYear(e.target.value)} className="sm:w-40">
           <option value="all">全部年份</option>
           {years.map((y) => (
             <option key={y} value={String(y)}>
@@ -145,7 +191,7 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
             </option>
           ))}
         </Select>
-        <Select value={loc} onChange={(e) => setLoc(e.target.value)} className="sm:w-48">
+        <Select value={loc} onChange={(e) => changeLoc(e.target.value)} className="sm:w-48">
           <option value="all">全部地点</option>
           {locations.map((l) => (
             <option key={l} value={l}>
@@ -154,13 +200,7 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
           ))}
         </Select>
         {(year !== "all" || loc !== "all") && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setYear("all");
-              setLoc("all");
-            }}
-          >
+          <Button variant="ghost" onClick={clearFilters}>
             清除筛选
           </Button>
         )}
@@ -224,23 +264,31 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
           <p className="flex items-center gap-1.5 px-1 text-xs text-muted">
             <MessageSquare size={13} /> 回看心得是日后重读旅行时写下的感想，与旅行记录分开陈列
           </p>
-          <div className="relative space-y-4 pl-5 pt-3">
+          <div className="relative space-y-6 pl-5 pt-3">
             <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" />
-            {reviewItems.map((t) => (
-              <div key={t.id} className="relative">
-                <span className="absolute -left-5 top-2 h-3 w-3 rounded-full border-2 border-amber-400 bg-surface" />
-                <Link href={`/life/travel/${t.id}`} className="block">
-                  <Card className="border-l-4 border-l-amber-400 p-4 transition hover:border-l-amber-500">
-                    <p className="text-xs text-muted">
-                      {fmtDate(t.date ?? "")}
-                      {t.location ? ` · ${t.location}` : ""}
-                    </p>
-                    <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed">
-                      <Quote size={15} className="mt-0.5 shrink-0 text-amber-500" />
-                      <span className="line-clamp-4">{t.review}</span>
-                    </p>
-                  </Card>
-                </Link>
+            {reviewGroups.map(([yr, items]) => (
+              <div key={yr} className="space-y-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-muted">
+                  <span className="rounded-full bg-surface-2 px-2.5 py-0.5">{yr} 年</span>
+                  <span className="text-xs font-normal">共 {items.length} 条心得</span>
+                </p>
+                {items.map((t) => (
+                  <div key={t.id} className="relative">
+                    <span className="absolute -left-5 top-2 h-3 w-3 rounded-full border-2 border-amber-400 bg-surface" />
+                    <Link href={`/life/travel/${t.id}`} className="block">
+                      <Card className="border-l-4 border-l-amber-400 p-4 transition hover:border-l-amber-500">
+                        <p className="text-xs text-muted">
+                          {fmtDate(t.date ?? "")}
+                          {t.location ? ` · ${t.location}` : ""}
+                        </p>
+                        <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed">
+                          <Quote size={15} className="mt-0.5 shrink-0 text-amber-500" />
+                          <span className="line-clamp-4">{t.review}</span>
+                        </p>
+                      </Card>
+                    </Link>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

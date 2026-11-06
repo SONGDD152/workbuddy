@@ -54,26 +54,33 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const batchRef = React.useRef<HTMLInputElement>(null);
   const [batchBusy, setBatchBusy] = React.useState(false);
+  const [batchTotal, setBatchTotal] = React.useState(0);
+  const [batchDone, setBatchDone] = React.useState(0);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
   async function handleBatch(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    const imgs = Array.from(files ?? []).filter((f) => f.type.startsWith("image/"));
+    if (imgs.length === 0) return;
     setBatchBusy(true);
+    setBatchTotal(imgs.length);
+    setBatchDone(0);
     const urls: string[] = [];
     const failed: string[] = [];
-    for (const f of Array.from(files)) {
-      if (!f.type.startsWith("image/")) continue;
+    for (const f of imgs) {
       try {
         urls.push(await compressImage(f));
       } catch {
         failed.push(f.name || "一张图片");
       }
+      setBatchDone((d) => d + 1);
     }
     if (urls.length) setForm((f) => ({ ...f, images: [...f.images, ...urls] }));
     setBatchBusy(false);
+    setBatchTotal(0);
+    setBatchDone(0);
     if (failed.length) alert(`有 ${failed.length} 张图片处理失败（可能过大），已跳过`);
   }
 
@@ -152,7 +159,7 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
           </div>
           <Button variant="outline" onClick={() => batchRef.current?.click()} disabled={batchBusy}>
             {batchBusy ? <Loader2 size={16} className="animate-spin" /> : <Images size={16} />}
-            {batchBusy ? "处理中…" : "从相册批量选图"}
+            {batchBusy ? `处理中 ${batchDone}/${batchTotal}` : "从相册批量选图"}
           </Button>
         </div>
         {form.images.length > 0 && (
