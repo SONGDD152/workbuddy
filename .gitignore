@@ -9,6 +9,7 @@ public/uploads/
 .env*.local
 *.log
 *.tsbuildinfo
+next-env.d.ts
 .workbuddy/
 .DS_Store
 twa-build/

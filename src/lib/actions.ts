@@ -1,6 +1,8 @@
 "use server";
+import { randomBytes } from "node:crypto";
 import { getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parseWarehouseCode } from "@/lib/warehouse";
 
 async function uid(): Promise<string> {
   const id = await getUserId();
@@ -80,9 +82,150 @@ export async function addOutfitFeedback(comboKey: string, adopted: boolean) {
   return prisma.outfitFeedback.create({ data: { userId, comboKey, adopted } });
 }
 
-// ===== 家庭仓储 =====
+// ===== 家庭仓储 · 仓库 =====
+// 所有仓库操作都带 userId 约束；code 是二维码里编码的随机令牌，绝不暴露数据库 id。
+
+/** 校验表单传来的仓库 id 确实属于当前账号，防止跨账号关联 */
+async function ownedWarehouseId(userId: string, raw: any): Promise<string | null> {
+  const id = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  if (!id) return null;
+  const wh = await prisma.warehouse.findFirst({
+    where: { id, userId },
+    select: { id: true },
+  });
+  return wh?.id ?? null;
+}
+
+function safeQuantity(v: any): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(9999, Math.floor(n)));
+}
+
+function newWarehouseCode(): string {
+  return randomBytes(9).toString("base64url"); // 12 字符，二维码短、好扫
+}
+
+export async function createWarehouse(input: any) {
+  const userId = await uid();
+  const name = String(input?.name ?? "").trim().slice(0, 40);
+  if (!name) throw new Error("请填写仓库名称");
+  const note = String(input?.note ?? "").trim().slice(0, 120) || null;
+  const wh = await prisma.warehouse.create({
+    data: { userId, name, note, code: newWarehouseCode() },
+    select: { id: true, name: true, code: true, note: true },
+  });
+  return wh;
+}
+
+export async function renameWarehouse(id: string, patch: any) {
+  const userId = await uid();
+  const name = String(patch?.name ?? "").trim().slice(0, 40);
+  if (!name) throw new Error("请填写仓库名称");
+  const note = String(patch?.note ?? "").trim().slice(0, 120) || null;
+  return prisma.warehouse.updateMany({ where: { id, userId }, data: { name, note } });
+}
+
+/** 二维码泄露 / 换贴纸时换一个令牌；已入库物品的归属不受影响 */
+export async function regenerateWarehouseCode(id: string) {
+  const userId = await uid();
+  const code = newWarehouseCode();
+  const r = await prisma.warehouse.updateMany({ where: { id, userId }, data: { code } });
+  if (r.count === 0) throw new Error("仓库不存在");
+  return { code };
+}
+
+/** 删仓库只解绑物品，绝不连带删掉里面的东西 */
+export async function deleteWarehouse(id: string) {
+  const userId = await uid();
+  const wh = await prisma.warehouse.findFirst({
+    where: { id, userId },
+    select: { id: true },
+  });
+  if (!wh) throw new Error("仓库不存在");
+  return prisma.$transaction([
+    prisma.storageItem.updateMany({
+      where: { userId, warehouseId: id },
+      data: { warehouseId: null },
+    }),
+    prisma.warehouse.deleteMany({ where: { id, userId } }),
+  ]);
+}
+
+/** 扫码第一段：校验这确实是该账号的仓库码 */
+export async function resolveWarehouse(raw: string) {
+  const userId = await uid();
+  const code = parseWarehouseCode(raw);
+  if (!code) return null;
+  return prisma.warehouse.findFirst({
+    where: { userId, code },
+    select: { id: true, name: true, code: true },
+  });
+}
+
+/** 扫码第二段：物品条码 → 自动入库（新记录或同仓库同条码数量 +1） */
+export async function autoStoreItem(warehouseQr: string, itemCode: string) {
+  const userId = await uid();
+  const code = parseWarehouseCode(warehouseQr);
+  if (!code) throw new Error("请先扫仓库二维码");
+  const wh = await prisma.warehouse.findFirst({
+    where: { userId, code },
+    select: { id: true, name: true },
+  });
+  if (!wh) throw new Error("找不到这个仓库，或它不属于当前账号");
+
+  const barcode = String(itemCode ?? "").trim().slice(0, 200);
+  if (!barcode) throw new Error("物品码为空");
+  if (parseWarehouseCode(barcode)) throw new Error("扫到的是仓库码，请扫物品上的条码");
+
+  const existing = await prisma.storageItem.findFirst({
+    where: { userId, barcode, warehouseId: wh.id },
+    select: { id: true, name: true, quantity: true },
+  });
+  if (existing) {
+    const updated = await prisma.storageItem.update({
+      where: { id: existing.id },
+      data: { quantity: { increment: 1 } },
+      select: { id: true, name: true, quantity: true },
+    });
+    return {
+      mode: "increment" as const,
+      warehouse: wh.name,
+      itemId: updated.id,
+      name: updated.name,
+      barcode,
+      quantity: updated.quantity,
+    };
+  }
+
+  const created = await prisma.storageItem.create({
+    data: {
+      userId,
+      name: `未命名物品 · ${barcode.slice(-6)}`,
+      category: "DAILY",
+      room: wh.name,
+      position: null,
+      barcode,
+      warehouseId: wh.id,
+      quantity: 1,
+      visibility: "PRIVATE",
+    },
+    select: { id: true, name: true, quantity: true },
+  });
+  return {
+    mode: "created" as const,
+    warehouse: wh.name,
+    itemId: created.id,
+    name: created.name,
+    barcode,
+    quantity: created.quantity,
+  };
+}
+
+// ===== 家庭仓储 · 物品 =====
 export async function createStorageItem(input: any) {
   const userId = await uid();
+  const warehouseId = await ownedWarehouseId(userId, input.warehouseId);
   return prisma.storageItem.create({
     data: {
       userId,
@@ -91,6 +234,8 @@ export async function createStorageItem(input: any) {
       room: input.room || null,
       position: input.position || null,
       barcode: input.barcode || null,
+      warehouseId,
+      quantity: safeQuantity(input.quantity),
       image: input.image || null,
       note: input.note || null,
       visibility: input.visibility || "PRIVATE",
@@ -99,6 +244,11 @@ export async function createStorageItem(input: any) {
 }
 export async function updateStorageItem(id: string, patch: any) {
   const userId = await uid();
+  // 编辑表单一定会传 warehouseId（可为空串 = 移出仓库）；undefined 表示不改
+  const warehouseId =
+    patch.warehouseId === undefined
+      ? undefined
+      : await ownedWarehouseId(userId, patch.warehouseId);
   return prisma.storageItem.updateMany({
     where: { id, userId },
     data: {
@@ -107,6 +257,8 @@ export async function updateStorageItem(id: string, patch: any) {
       room: patch.room,
       position: patch.position,
       barcode: patch.barcode,
+      warehouseId,
+      quantity: patch.quantity === undefined ? undefined : safeQuantity(patch.quantity),
       image: patch.image,
       note: patch.note,
       visibility: patch.visibility,

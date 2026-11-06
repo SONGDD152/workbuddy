@@ -79,6 +79,7 @@ model User {
   travels      Travel[]
   clothings    Clothing[]
   storageItems StorageItem[]
+  warehouses   Warehouse[]
   outfitFeedbacks OutfitFeedback[]
   foodRecords  FoodRecord[]
   hobbies      Hobby[]
@@ -177,22 +178,43 @@ model OutfitFeedback {
 }
 
 // ===== 生活 · 家庭仓储 =====
+// 仓库（柜子 / 收纳箱 / 储物间）。每个仓库有名称与一张专属二维码，
+// 二维码里编码的是 code（随机令牌，不是数据库 id），打印后可贴在实物上。
+// 入库流程：先扫仓库码确定归属，再扫物品条码，服务端自动建记录或累加数量。
+model Warehouse {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  code      String        @unique
+  note      String?
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     StorageItem[]
+
+  @@index([userId])
+}
+
 model StorageItem {
-  id          String          @id @default(cuid())
-  userId      String
-  name        String
-  category    StorageCategory
-  room        String? // 房间，如「阳台」
-  position    String? // 具体位置，如「右侧柜子第二层」
-  barcode     String? // 条码/二维码
-  image       String?
-  note        String?
-  visibility  Visibility      @default(PRIVATE)
-  createdAt   DateTime        @default(now())
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String          @id @default(cuid())
+  userId       String
+  name         String
+  category     StorageCategory
+  room         String? // 房间，如「阳台」；自动入库时写入仓库名，便于旧视图展示
+  position     String? // 具体位置，如「右侧柜子第二层」
+  barcode      String? // 物品条码 / 二维码
+  warehouseId  String? // 所属仓库；删仓库时自动置空，不删物品
+  warehouse    Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  quantity     Int             @default(1) // 同一条码重复入库时累加，不产生重复记录
+  image        String?
+  note         String?
+  visibility   Visibility      @default(PRIVATE)
+  createdAt    DateTime        @default(now())
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([barcode])
+  @@index([warehouseId])
+  @@index([userId, barcode])
 }
 
 // ===== 生活 · 餐饮 =====
