@@ -2,4 +2,5 @@
 <resources>
     <color name="splash_bg">#FFE1EFF7</color>
     <color name="brand">#FF5AA9E6</color>
+    <color name="transparent">#00000000</color>
 </resources>

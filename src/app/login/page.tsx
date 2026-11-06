@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [name, setName] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  // 原生 App 内不显示「返回公开主页」这类网页版出口，保持独立 App 的观感
+  const [inApp, setInApp] = React.useState(false);
+
+  React.useEffect(() => {
+    setInApp(/XiaoBaiGuanjiaApp/i.test(navigator.userAgent));
+  }, []);
 
   async function submit() {
     setError("");
@@ -100,9 +106,11 @@ export default function LoginPage() {
         <p className="mt-3 text-center text-xs text-muted">
           数据云端同步，换设备无缝衔接。
         </p>
-        <Link href="/" className="mt-2 block text-center text-xs text-muted underline">
-          返回公开主页
-        </Link>
+        {!inApp && (
+          <Link href="/" className="mt-2 block text-center text-xs text-muted underline">
+            返回公开主页
+          </Link>
+        )}
       </Card>
     </div>
   );

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 冷启动即显示品牌画面，进入页面后由 MainActivity 换成纯色背景 -->
-    <style name="SplashTheme" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@drawable/splash_background</item>
+    <!-- 不做启动封面：窗口只用纯色打底，WebView 加载完成即直接显示登录页 -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
         <item name="android:statusBarColor">@color/brand</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@color/splash_bg</item>

@@ -3,7 +3,6 @@ package online.songdd.xbgj;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -23,13 +22,17 @@ import android.widget.ProgressBar;
 
 /**
  * 原生 WebView 外壳：不依赖 Chrome / Custom Tabs / Digital Asset Links，
- * 因此在没有 Chrome 的国产安卓机上也能以独立全屏窗口运行，不会出现地址栏或跳浏览器。
+ * 因此在没有 Chrome 的国产安卓机上也能以独立全屏窗口运行。
+ *
+ * 没有启动封面。冷启动直接加载 /app-launch：
+ * 未登录落到登录页，已登录直达 /home，行为和微信一致。
  * 包内不打包任何网页代码，内容始终来自 https://songdd.online。
  */
 public class MainActivity extends Activity {
 
     private static final String SITE = "https://songdd.online";
     private static final String HOST = "songdd.online";
+    private static final String LAUNCH_URL = SITE + "/app-launch";
     private static final int REQ_FILE = 1001;
     private static final int BG_COLOR = Color.parseColor("#e1eff7");
     private static final int BRAND_COLOR = Color.parseColor("#5aa9e6");
@@ -37,6 +40,7 @@ public class MainActivity extends Activity {
     private WebView web;
     private ProgressBar progress;
     private ValueCallback<Uri[]> filePathCallback;
+    private boolean landed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,8 +65,9 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+        CookieManager cookies = CookieManager.getInstance();
+        cookies.setAcceptCookie(true);
+        cookies.setAcceptThirdPartyCookies(web, true);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -76,6 +81,9 @@ public class MainActivity extends Activity {
         s.setDisplayZoomControls(false);
         s.setMediaPlaybackRequiresUserGesture(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        // 站点据此识别「这是 App 内」，隐藏网页版专属的返回主页等出口
+        String baseUa = s.getUserAgentString();
+        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.2.0");
         web.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
         web.setWebViewClient(new WebViewClient() {
@@ -98,8 +106,15 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                getWindow().setBackgroundDrawable(new ColorDrawable(BG_COLOR));
                 progress.setVisibility(View.GONE);
+                // 登录 cookie 立即落盘：进程被系统回收后重开仍是登录态，不用反复登录
+                CookieManager.getInstance().flush();
+                // 首次落到登录页/主界面后清掉重定向历史，首页按返回直接退出 App
+                if (!landed && (url.startsWith(SITE + "/login")
+                        || url.startsWith(SITE + "/home"))) {
+                    landed = true;
+                    view.clearHistory();
+                }
             }
 
             @Override
@@ -148,8 +163,9 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
+            landed = true;
         } else {
-            web.loadUrl(SITE + "/");
+            web.loadUrl(LAUNCH_URL);
         }
     }
 
@@ -193,11 +209,18 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         if (web != null) web.onPause();
+        CookieManager.getInstance().flush();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web != null) web.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        CookieManager.getInstance().flush();
+        super.onDestroy();
     }
 }
