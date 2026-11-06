@@ -1,31 +1,25 @@
-import { Construction } from "lucide-react";
-import { Card } from "@/components/ui";
+import { Briefcase, CalendarClock, Wrench } from "lucide-react";
+import { FuncGroup, FuncEntry } from "@/components/FunctionDirectory";
 
 export default function WorkPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header>
         <h1 className="text-2xl font-bold">工作频道</h1>
-        <p className="text-sm text-muted">预留模块位，后续迭代填充，不阻塞当前开发</p>
+        <p className="text-sm text-muted">模块规划中，以下为预留入口</p>
       </header>
 
-      <Card className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <Construction size={40} className="text-muted" />
-        <p className="text-lg font-semibold">建设中</p>
-        <p className="max-w-md text-sm text-muted">
-          工作频道入口已就绪，侧边栏可正常切换。以下两个一级模块预留位置，将在后续阶段填充：
-        </p>
-        <div className="mt-2 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-dashed border-border p-4 text-sm">
-            <p className="font-medium">工作日程进度</p>
-            <p className="text-muted">（预留）</p>
-          </div>
-          <div className="rounded-xl border border-dashed border-border p-4 text-sm">
-            <p className="font-medium">具体操作技能类</p>
-            <p className="text-muted">（预留）</p>
-          </div>
-        </div>
-      </Card>
+      {/* 功能导航：与仓储页一致的分组快捷入口目录（预留项置灰） */}
+      <div className="space-y-4 rounded-2xl border border-border bg-surface/60 p-4">
+        <FuncGroup title="规划中">
+          <FuncEntry icon={CalendarClock} title="工作日程进度" hint="（预留）" disabled />
+          <FuncEntry icon={Wrench} title="具体操作技能类" hint="（预留）" disabled />
+        </FuncGroup>
+      </div>
+
+      <p className="text-sm text-muted">
+        侧边栏与底部导航已就绪，待后续阶段填充具体内容，不阻塞当前开发。
+      </p>
     </div>
   );
 }

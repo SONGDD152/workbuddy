@@ -17,7 +17,7 @@ import {
  * 全站模块单一数据源：
  * - AppShell 侧栏 / 底部 Tab 由此派生（保证子项与顺序唯一）
  * - 模块落地页（/life、/library）的分组目录由此渲染
- * - 内容页顶部的「同级模块」导航（ModuleTabs）由此派生
+ * - 内容页左侧「固定子模块导航列」（ModuleSideNav）由此派生
  * 改模块结构只改这一处即可，避免三套定义各写各的。
  */
 export type ModuleEntry = {

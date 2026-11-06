@@ -18,7 +18,7 @@ import {
 import { MODULES } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { useKeyboardInset } from "@/lib/useKeyboardInset";
-import { ModuleTabs } from "@/components/ModuleTabs";
+import { ModuleSideNav } from "@/components/ModuleSideNav";
 
 type Item = { href: string; label: string; icon: React.FC<any> };
 type Group = { label: string; icon: React.FC<any>; href: string; items: Item[] };
@@ -205,8 +205,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 lg:pb-10">
-          <ModuleTabs />
-          {children}
+          <div className="flex gap-2">
+            <ModuleSideNav />
+            <div className="min-w-0 flex-1">{children}</div>
+          </div>
         </main>
       </div>
 

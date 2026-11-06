@@ -2,6 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FuncEntry, FuncGroup } from "@/components/FunctionDirectory";
 import {
   Plus,
   Pencil,
@@ -569,49 +570,50 @@ export function StorageClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">家庭仓储</h1>
-          <p className="text-sm text-muted">
-            {warehouses.length} 个仓库 · {stats.total} 件物品 · 两段扫码入库 · 明细可导出
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={startIntake}>
-            <ScanLine size={16} /> 扫码入库
-          </Button>
-          <Button variant="outline" onClick={() => setLoanOpen(true)}>
-            <PackageMinus size={16} /> 出库 / 借还
-          </Button>
-          <Button variant="outline" onClick={() => setScan("lookup")}>
-            <Search size={16} /> 扫码查物品
-          </Button>
-          <Button variant="outline" onClick={() => openNew()}>
-            <Plus size={16} /> 手动添加
-          </Button>
-          <Button
-            variant="outline"
+      <div>
+        <h1 className="text-2xl font-bold">家庭仓储</h1>
+        <p className="text-sm text-muted">
+          {warehouses.length} 个仓库 · {stats.total} 件物品 · 两段扫码入库 · 明细可导出
+        </p>
+      </div>
+
+      {/* 功能导航：借鉴 ERP 的「分组快捷入口」目录，换成清新亮色卡片 */}
+      <div className="space-y-4 rounded-2xl border border-border bg-surface/60 p-4">
+        <FuncGroup title="快捷作业">
+          <FuncEntry icon={ScanLine} title="扫码入库" hint="两段扫码自动归库" onClick={startIntake} />
+          <FuncEntry icon={Search} title="扫码查物品" hint="扫条码快速定位" onClick={() => setScan("lookup")} />
+          <FuncEntry icon={PackageMinus} title="出库 / 借还" hint="消耗或归还类" onClick={() => setLoanOpen(true)} />
+        </FuncGroup>
+        <FuncGroup title="台账与预警">
+          <FuncEntry icon={FileSpreadsheet} title="借出清单" hint="全量借还流水" href="/life/storage/loans" />
+          <FuncEntry icon={Clock3} title="预警大屏" hint="超期滚动播报" href="/life/storage/alerts" />
+          <FuncEntry
+            icon={Boxes}
+            title="我的物品"
+            hint="查看 / 编辑"
+            onClick={() => document.getElementById("item-list")?.scrollIntoView({ behavior: "smooth" })}
+          />
+        </FuncGroup>
+        <FuncGroup title="资料与打印">
+          <FuncEntry icon={Plus} title="新建物品" hint="手动登记" onClick={() => openNew()} />
+          <FuncEntry
+            icon={Warehouse}
+            title="仓库列表"
+            hint="管理二维码"
+            onClick={() => document.getElementById("warehouses")?.scrollIntoView({ behavior: "smooth" })}
+          />
+          <FuncEntry icon={Printer} title="打印二维码" hint="批量贴纸" href="/life/storage/labels" />
+          <FuncEntry
+            icon={FileSpreadsheet}
+            title="导出明细"
+            hint="12 列 CSV"
             onClick={() => {
               setExportScope("filtered");
               setCopied(false);
               setExportOpen(true);
             }}
-          >
-            <FileSpreadsheet size={16} /> 导出明细
-          </Button>
-          <Link
-            href="/life/storage/labels"
-            className="tap inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2"
-          >
-            <Printer size={16} /> 打印二维码
-          </Link>
-          <Link
-            href="/life/storage/alerts"
-            className="tap inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2"
-          >
-            <Clock3 size={16} /> 预警大屏
-          </Link>
-        </div>
+          />
+        </FuncGroup>
       </div>
 
       {notice && (
@@ -636,7 +638,7 @@ export function StorageClient({
       </p>
 
       {/* 仓库区 */}
-      <section className="space-y-3">
+      <section id="warehouses" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -755,6 +757,7 @@ export function StorageClient({
       </div>
 
       {/* 物品列表 */}
+      <div id="item-list">
       {filtered.length === 0 ? (
         <EmptyState
           title="没有匹配的物品"
@@ -825,6 +828,7 @@ export function StorageClient({
           })}
         </div>
       )}
+      </div>
 
       {/* 物品表单 */}
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "编辑物品" : "添加物品"}>
