@@ -47,6 +47,22 @@ export async function deleteTravel(id: string) {
   return prisma.travel.deleteMany({ where: { id, userId } });
 }
 
+// ===== 旅行回看评论（阅读页评论区，多条带时间） =====
+export async function addTravelNote(travelId: string, content: string) {
+  const userId = await uid();
+  const text = (content ?? "").trim();
+  if (!text) throw new Error("回看内容不能为空");
+  // 先确认这条旅行记录属于当前用户，防止跨用户写评论
+  const travel = await prisma.travel.findFirst({ where: { id: travelId, userId }, select: { id: true } });
+  if (!travel) throw new Error("旅行记录不存在");
+  return prisma.travelNote.create({ data: { userId, travelId, content: text } });
+}
+
+export async function deleteTravelNote(id: string) {
+  const userId = await uid();
+  return prisma.travelNote.deleteMany({ where: { id, userId } });
+}
+
 // ===== 衣橱 =====
 export async function createClothing(input: any) {
   const userId = await uid();

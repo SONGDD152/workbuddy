@@ -162,19 +162,33 @@ model MomentComment {
 
 // ===== 生活 · 旅行 =====
 model Travel {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   userId      String
   title       String
   date        DateTime
   location    String?
   description String? // 旅行记录（公开广场会展示）
-  review      String? // 回看心得（私密，不进公开白名单）
-  images      String[]   @default([])
-  visibility  Visibility @default(PRIVATE)
-  createdAt   DateTime   @default(now())
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review      String? // 回看心得·初记（私密，不进公开白名单）
+  images      String[]      @default([])
+  visibility  Visibility    @default(PRIVATE)
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes       TravelNote[]
 
   @@index([userId, date])
+}
+
+// 旅行回看评论：像评论区一样，每次回看随时补写一条带时间的心得（私密）
+model TravelNote {
+  id        String   @id @default(cuid())
+  userId    String
+  travelId  String
+  content   String
+  createdAt DateTime @default(now())
+  travel    Travel   @relation(fields: [travelId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([travelId, createdAt])
 }
 
 // ===== 生活 · 衣橱 =====

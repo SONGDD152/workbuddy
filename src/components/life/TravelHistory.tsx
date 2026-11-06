@@ -7,14 +7,21 @@ import { Download, MapPin, CalendarDays, Sparkles, Quote, MessageSquare } from "
 import { Card, Button, EmptyState, Select } from "@/components/ui";
 import { cn, fmtDate } from "@/lib/utils";
 import type { TravelFormValue } from "@/components/life/TravelForm";
+import type { TravelNoteValue } from "@/components/life/TravelView";
 
 /**
  * 浏览历史旅行记录：顶部统计 + 分段切换（旅行记录 / 回看心得）+ 年份/地点筛选。
- * - 旅行记录：可筛选的概述列表，点开跳输入页。
- * - 回看心得：仅展示写了心得的条目，独立时间线样式（琥珀左边框），与记录区分。
- * 支持全部 CSV 导出。
+ * - 旅行记录：可筛选的概述列表，点开跳「心得展示页」。
+ * - 回看心得：时间线视图，合并「旅行时写下的初记」与展示页评论区补写的回看，按年份分组。
+ * 支持全部 CSV 导出（含回看评论）。
  */
-export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
+export function TravelHistory({
+  initial,
+  notes = [],
+}: {
+  initial: TravelFormValue[];
+  notes?: TravelNoteValue[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -81,32 +88,84 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
     });
   }, [initial, year, loc]);
 
-  const reviewItems = React.useMemo(
-    () => filtered.filter((t) => (t.review ?? "").trim().length > 0),
-    [filtered]
-  );
+  // 回看心得时间线条目：合并「初记 review」与展示页评论区补写的 notes
+  const reviewEntries = React.useMemo(() => {
+    const byId = new Map(initial.map((t) => [t.id as string, t]));
+    const entries: {
+      key: string;
+      date: Date;
+      location: string;
+      text: string;
+      when: string;
+      href: string;
+    }[] = [];
+    for (const t of initial) {
+      if ((t.review ?? "").trim()) {
+        entries.push({
+          key: `r-${t.id}`,
+          date: new Date(t.date ?? Date.now()),
+          location: (t.location ?? "").trim(),
+          text: (t.review ?? "").trim(),
+          when: "旅行时写下",
+          href: `/life/travel/${t.id}`,
+        });
+      }
+    }
+    for (const n of notes) {
+      const t = n.travelId ? byId.get(n.travelId) : undefined;
+      entries.push({
+        key: `n-${n.id}`,
+        date: new Date(n.createdAt),
+        location: (t?.location ?? "").trim(),
+        text: n.content,
+        when: "回看",
+        href: n.travelId ? `/life/travel/${n.travelId}` : "/life/travel/history",
+      });
+    }
+    return entries.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [initial, notes]);
 
-  // 心得时间线按年份分组（年份筛选已作用于 reviewItems，这里再按年排布）
+  // 心得时间线同样受年份/地点筛选（年份取回看发生的时间）
+  const filteredReviewEntries = React.useMemo(() => {
+    return reviewEntries.filter(
+      (e) =>
+        (year === "all" || e.date.getFullYear().toString() === year) &&
+        (loc === "all" || e.location === loc)
+    );
+  }, [reviewEntries, year, loc]);
+
+  // 心得时间线按年份分组
   const reviewGroups = React.useMemo(() => {
-    const map = new Map<number, TravelFormValue[]>();
-    for (const t of reviewItems) {
-      const y = new Date(t.date ?? Date.now()).getFullYear();
+    const map = new Map<number, typeof filteredReviewEntries>();
+    for (const e of filteredReviewEntries) {
+      const y = e.date.getFullYear();
       if (!map.has(y)) map.set(y, []);
-      map.get(y)!.push(t);
+      map.get(y)!.push(e);
     }
     return Array.from(map.entries()).sort((a, b) => b[0] - a[0]);
-  }, [reviewItems]);
+  }, [filteredReviewEntries]);
 
   function exportCsv() {
     const header = ["日期", "地点", "标题", "旅行记录", "回看心得"];
     const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const rows = initial.map((t) => [
-      fmtDate(t.date ?? ""),
-      t.location ?? "",
-      t.title ?? "",
-      t.description ?? "",
-      t.review ?? "",
-    ]);
+    const locById = new Map(initial.map((t) => [t.id as string, (t.location ?? "").trim()]));
+    const rows = [
+      ...initial.map((t) => [
+        fmtDate(t.date ?? ""),
+        t.location ?? "",
+        t.title ?? "",
+        t.description ?? "",
+        t.review ?? "",
+      ]),
+      // 回看评论：日期列为评论时间（含时分），便于与初记区分
+      ...notes.map((n) => [
+        fmtDate(n.createdAt, "yyyy-MM-dd HH:mm"),
+        n.travelId ? locById.get(n.travelId) ?? "" : "",
+        "",
+        "",
+        n.content,
+      ]),
+    ];
     const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -122,7 +181,7 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">浏览历史旅行记录</h1>
-          <p className="text-sm text-muted">统计与回看，点概述可回到输入页</p>
+          <p className="text-sm text-muted">统计与回看，点概述打开心得展示页</p>
         </div>
         <Button variant="outline" onClick={exportCsv} disabled={initial.length === 0}>
           <Download size={16} /> 导出全部
@@ -254,15 +313,15 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
             ))}
           </div>
         )
-      ) : reviewItems.length === 0 ? (
+      ) : filteredReviewEntries.length === 0 ? (
         <EmptyState
           title="还没有回看心得"
-          hint="在旅行记录的输入页里写下回看感想，会单独陈列在这里"
+          hint="在心得展示页的评论区像留言一样，写下你的回看感想"
         />
       ) : (
         <div className="space-y-1">
           <p className="flex items-center gap-1.5 px-1 text-xs text-muted">
-            <MessageSquare size={13} /> 回看心得是日后重读旅行时写下的感想，与旅行记录分开陈列
+            <MessageSquare size={13} /> 回看心得按时间陈列：旅行时写下的初记 + 展示页评论区补写的回看
           </p>
           <div className="relative space-y-6 pl-5 pt-3">
             <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" />
@@ -272,18 +331,18 @@ export function TravelHistory({ initial }: { initial: TravelFormValue[] }) {
                   <span className="rounded-full bg-surface-2 px-2.5 py-0.5">{yr} 年</span>
                   <span className="text-xs font-normal">共 {items.length} 条心得</span>
                 </p>
-                {items.map((t) => (
-                  <div key={t.id} className="relative">
+                {items.map((e) => (
+                  <div key={e.key} className="relative">
                     <span className="absolute -left-5 top-2 h-3 w-3 rounded-full border-2 border-amber-400 bg-surface" />
-                    <Link href={`/life/travel/${t.id}`} className="block">
+                    <Link href={e.href} className="block">
                       <Card className="border-l-4 border-l-amber-400 p-4 transition hover:border-l-amber-500">
                         <p className="text-xs text-muted">
-                          {fmtDate(t.date ?? "")}
-                          {t.location ? ` · ${t.location}` : ""}
+                          {fmtDate(e.date, e.when === "回看" ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd")}
+                          {e.location ? ` · ${e.location}` : ""} · {e.when}
                         </p>
                         <p className="mt-1.5 flex gap-1.5 text-sm leading-relaxed">
                           <Quote size={15} className="mt-0.5 shrink-0 text-amber-500" />
-                          <span className="line-clamp-4">{t.review}</span>
+                          <span className="line-clamp-4">{e.text}</span>
                         </p>
                       </Card>
                     </Link>

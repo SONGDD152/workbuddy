@@ -101,9 +101,14 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
         images: form.images,
         visibility: form.visibility,
       };
-      if (editing) await updateTravel(initial!.id!, payload);
-      else await createTravel(payload);
-      router.push("/life/travel/history");
+      // 保存即成文：落进「图片+文字」的心得展示页，而不是回到列表
+      if (editing) {
+        await updateTravel(initial!.id!, payload);
+        router.push(`/life/travel/${initial!.id}`);
+      } else {
+        const created = await createTravel(payload);
+        router.push(`/life/travel/${(created as { id?: string })?.id ?? ""}`);
+      }
     } catch (e: any) {
       alert(e?.message || "保存失败");
     } finally {
@@ -232,7 +237,7 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
 
       {/* 回看心得 */}
       <Card className="space-y-2 p-4">
-        <label className="block text-sm font-medium text-muted">回看心得</label>
+        <label className="block text-sm font-medium text-muted">回看心得（初记）</label>
         <Textarea
           rows={3}
           placeholder="日后回看这段记录时写下的感想…"
@@ -240,6 +245,9 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
           value={form.review}
           onChange={(e) => set("review", e.target.value)}
         />
+        <p className="text-xs text-muted">
+          这里记的是总评；保存后可在心得页的评论区像留言一样，随时补写带时间的回看
+        </p>
       </Card>
 
       {/* 可见性 */}
