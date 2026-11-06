@@ -14,3 +14,5 @@ public/uploads/
 twa-build/
 android.keystore
 *.p12
+__pycache__/
+*.pyc
