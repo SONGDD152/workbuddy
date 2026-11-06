@@ -73,7 +73,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         href="/home"
         className="mb-3 flex items-center gap-2 px-2 py-2 text-lg font-bold"
       >
-        <span className="text-brand">◆</span> 我的频道
+        <span className="text-brand">◆</span> 管家小白
       </Link>
       <Link
         href="/home"
@@ -187,7 +187,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <Menu size={20} />
         </button>
-        <span className="font-semibold">我的频道</span>
+        <span className="font-semibold">管家小白</span>
         <ThemeToggle />
       </header>
 

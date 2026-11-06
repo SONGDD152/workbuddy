@@ -40,7 +40,7 @@ export default function LoginPage() {
         <h1 className="mb-1 text-2xl font-bold">
           {mode === "login" ? "登录" : "注册"}
         </h1>
-        <p className="mb-5 text-sm text-muted">我的频道 · 个人多频道平台</p>
+        <p className="mb-5 text-sm text-muted">管家小白 · 个人生活空间</p>
 
         {mode === "register" && (
           <div className="mb-3">
