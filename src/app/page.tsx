@@ -53,6 +53,12 @@ export default function PublicHomePage() {
               </a>
             ))}
             <Link
+              href="/moments"
+              className="hidden rounded-full px-3 py-1.5 text-sm text-muted transition hover:bg-surface-2 hover:text-fg sm:inline-block"
+            >
+              朋友圈
+            </Link>
+            <Link
               href="/explore"
               className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-brand transition hover:bg-surface-2 sm:inline-block"
             >
@@ -172,18 +178,32 @@ export default function PublicHomePage() {
             })}
           </div>
 
-          <Link
-            href="/explore"
-            className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
-          >
-            <span>
-              <span className="block font-medium">公开内容广场</span>
-              <span className="mt-1 block text-sm leading-relaxed text-muted">
-                看看各账号主动分享的旅行、书单、影音与学习记录，无需登录即可浏览。
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/moments"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
+            >
+              <span>
+                <span className="block font-medium">朋友圈</span>
+                <span className="mt-1 block text-sm leading-relaxed text-muted">
+                  发动态、点赞、评论；公开的动态所有人可见。
+                </span>
               </span>
-            </span>
-            <ArrowRight size={18} className="shrink-0 text-brand" />
-          </Link>
+              <ArrowRight size={18} className="shrink-0 text-brand" />
+            </Link>
+            <Link
+              href="/explore"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
+            >
+              <span>
+                <span className="block font-medium">公开内容广场</span>
+                <span className="mt-1 block text-sm leading-relaxed text-muted">
+                  旅行、书单、影音与学习记录，无需登录即可浏览。
+                </span>
+              </span>
+              <ArrowRight size={18} className="shrink-0 text-brand" />
+            </Link>
+          </div>
         </section>
 
         {/* ================= 联系 ================= */}

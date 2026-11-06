@@ -20,6 +20,7 @@ import {
   X,
   Moon,
   Sun,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +83,16 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         )}
       >
         <Home size={18} /> 首页
+      </Link>
+      <Link
+        href="/moments"
+        onClick={onNav}
+        className={cn(
+          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium",
+          pathname === "/moments" ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
+        )}
+      >
+        <MessageCircle size={18} /> 朋友圈
       </Link>
       {NAV.map((g) => (
         <div key={g.label} className="mt-3">

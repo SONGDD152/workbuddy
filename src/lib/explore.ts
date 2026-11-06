@@ -13,12 +13,14 @@ import { STORAGE_CATEGORY_LABEL, PROGRESS_LABEL } from "@/lib/constants";
  *  3. 作者只取 user.name，并做脱敏；空值或疑似邮箱一律显示「匿名记录者」。
  *  4. 家庭仓储不公开 room / position / barcode —— 家里东西放在哪儿属于隐私。
  *  5. 不公开笔记、读书/影评/学习报告、日记等正文；只公开条目元数据。
+ *     朋友圈例外：仅展示主动标为公开的动态正文，且截断到 300 字。
  *  6. 每个模型单独容错，某张表或某列缺失时该类返回空，不让整页 500。
  *  7. 每类最多 24 条，避免数据量变大后拖垮公开页。
  * ============================================================
  */
 
 export const EXPLORE_KINDS = [
+  "moment",
   "travel",
   "storage",
   "hobby",
@@ -30,6 +32,7 @@ export const EXPLORE_KINDS = [
 export type ExploreKind = (typeof EXPLORE_KINDS)[number];
 
 export const EXPLORE_KIND_LABEL: Record<ExploreKind, string> = {
+  moment: "动态",
   travel: "旅行",
   storage: "收纳",
   hobby: "爱好",
@@ -73,110 +76,142 @@ function day(d: Date | null | undefined): string {
   return Number.isNaN(t.getTime()) ? "" : t.toISOString().slice(0, 10);
 }
 
+function excerpt(s: string, max = 300): string {
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
 export async function getPublicItems(): Promise<PublicItem[]> {
-  const [travels, storages, hobbies, books, movies, studies] = await Promise.all([
-    safe(
-      () =>
-        prisma.travel.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            title: true,
-            location: true,
-            description: true,
-            date: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-    safe(
-      () =>
-        prisma.storageItem.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            name: true,
-            category: true,
-            note: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-    safe(
-      () =>
-        prisma.hobby.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            name: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-    safe(
-      () =>
-        prisma.book.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            title: true,
-            author: true,
-            type: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-    safe(
-      () =>
-        prisma.movie.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            title: true,
-            genre: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-    safe(
-      () =>
-        prisma.study.findMany({
-          where: { visibility: PUBLIC },
-          select: {
-            id: true,
-            topic: true,
-            status: true,
-            createdAt: true,
-            user: { select: { name: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: PER_KIND,
-        }),
-      []
-    ),
-  ]);
+  const [moments, travels, storages, hobbies, books, movies, studies] =
+    await Promise.all([
+      safe(
+        () =>
+          prisma.moment.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.travel.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              title: true,
+              location: true,
+              description: true,
+              date: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.storageItem.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              name: true,
+              category: true,
+              note: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.hobby.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              name: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.book.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              title: true,
+              author: true,
+              type: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.movie.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              title: true,
+              genre: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+      safe(
+        () =>
+          prisma.study.findMany({
+            where: { visibility: PUBLIC },
+            select: {
+              id: true,
+              topic: true,
+              status: true,
+              createdAt: true,
+              user: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PER_KIND,
+          }),
+        []
+      ),
+    ]);
 
   const items: PublicItem[] = [];
+
+  for (const m of moments) {
+    items.push({
+      id: m.id,
+      kind: "moment",
+      title: "朋友圈动态",
+      subtitle: null,
+      description: excerpt(m.content),
+      author: author(m.user?.name),
+      date: day(m.createdAt),
+    });
+  }
 
   for (const t of travels) {
     items.push({

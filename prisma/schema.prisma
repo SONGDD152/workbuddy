@@ -87,6 +87,49 @@ model User {
   movies       Movie[]
   studies      Study[]
   diaries      Diary[]
+  moments        Moment[]
+  momentLikes    MomentLike[]
+  momentComments MomentComment[]
+}
+
+// ===== 朋友圈 · 动态 =====
+model Moment {
+  id         String          @id @default(cuid())
+  userId     String
+  content    String
+  images     String[]        @default([]) // 图片外链，最多 9 张
+  visibility Visibility      @default(PRIVATE)
+  createdAt  DateTime        @default(now())
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes      MomentLike[]
+  comments   MomentComment[]
+
+  @@index([userId, createdAt])
+  @@index([visibility, createdAt])
+}
+
+model MomentLike {
+  id        String   @id @default(cuid())
+  momentId  String
+  userId    String
+  createdAt DateTime @default(now())
+  moment    Moment   @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([momentId, userId])
+  @@index([momentId])
+}
+
+model MomentComment {
+  id        String   @id @default(cuid())
+  momentId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  moment    Moment   @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([momentId, createdAt])
 }
 
 // ===== 生活 · 旅行 =====

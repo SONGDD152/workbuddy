@@ -10,6 +10,7 @@ import {
   Globe,
   GraduationCap,
   Heart,
+  MessageCircle,
   Plane,
   UserRound,
 } from "lucide-react";
@@ -31,6 +32,7 @@ export const metadata: Metadata = {
 };
 
 const kindIcons: Record<ExploreKind, LucideIcon> = {
+  moment: MessageCircle,
   travel: Plane,
   storage: Boxes,
   hobby: Heart,

@@ -5,7 +5,7 @@
   "description": "个人多频道平台：生活 + 图书馆 + 工作（占位）。Next.js App Router + TS + Tailwind + Prisma + Vercel Postgres。",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma db push --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
