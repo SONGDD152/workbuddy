@@ -109,6 +109,7 @@ export async function updateStorageItem(id: string, patch: any) {
       barcode: patch.barcode,
       image: patch.image,
       note: patch.note,
+      visibility: patch.visibility,
     },
   });
 }
@@ -224,6 +225,32 @@ export async function updateGardenPlant(id: string, patch: any) {
 export async function deleteGardenPlant(id: string) {
   const userId = await uid();
   return prisma.gardenPlant.deleteMany({ where: { id, userId } });
+}
+
+// ===== 公开范围：统一的可见性切换（带 userId 约束，只能改自己的记录） =====
+export async function setContentVisibility(
+  kind: string,
+  id: string,
+  visibility: "PUBLIC" | "PRIVATE"
+) {
+  const userId = await uid();
+  const v = visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE";
+  switch (kind) {
+    case "travel":
+      return prisma.travel.updateMany({ where: { id, userId }, data: { visibility: v } });
+    case "storage":
+      return prisma.storageItem.updateMany({ where: { id, userId }, data: { visibility: v } });
+    case "hobby":
+      return prisma.hobby.updateMany({ where: { id, userId }, data: { visibility: v } });
+    case "book":
+      return prisma.book.updateMany({ where: { id, userId }, data: { visibility: v } });
+    case "movie":
+      return prisma.movie.updateMany({ where: { id, userId }, data: { visibility: v } });
+    case "study":
+      return prisma.study.updateMany({ where: { id, userId }, data: { visibility: v } });
+    default:
+      throw new Error("不支持的内容类型");
+  }
 }
 
 // ===== 读书 =====

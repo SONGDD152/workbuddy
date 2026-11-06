@@ -1,6 +1,7 @@
 node_modules/
 .next/
 .next*/
+build-check/
 out/
 public/uploads/
 .env

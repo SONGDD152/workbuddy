@@ -1,7 +1,8 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Search, ScanLine, Boxes } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ScanLine, Boxes, Globe, Lock } from "lucide-react";
 import {
   Button,
   Card,
@@ -17,6 +18,7 @@ import {
   createStorageItem,
   updateStorageItem,
   deleteStorageItem,
+  setContentVisibility,
 } from "@/lib/actions";
 import { STORAGE_CATEGORY_LABEL } from "@/lib/constants";
 
@@ -29,6 +31,7 @@ type Item = {
   barcode: string | null;
   image: string | null;
   note: string | null;
+  visibility: "PUBLIC" | "PRIVATE";
 };
 
 export function StorageClient({ initial }: { initial: Item[] }) {
@@ -48,8 +51,10 @@ export function StorageClient({ initial }: { initial: Item[] }) {
     barcode: "",
     image: "",
     note: "",
+    visibility: "PRIVATE",
   });
   const [saving, setSaving] = React.useState(false);
+  const [busy, setBusy] = React.useState<string | null>(null);
 
   React.useEffect(() => setItems(initial), [initial]);
 
@@ -80,7 +85,7 @@ export function StorageClient({ initial }: { initial: Item[] }) {
 
   function openNew(barcode?: string) {
     setEditing(null);
-    setForm({ name: "", category: "DAILY", room: "", position: "", barcode: barcode || "", image: "", note: "" });
+    setForm({ name: "", category: "DAILY", room: "", position: "", barcode: barcode || "", image: "", note: "", visibility: "PRIVATE" });
     setOpen(true);
   }
   function openEdit(it: Item) {
@@ -93,6 +98,7 @@ export function StorageClient({ initial }: { initial: Item[] }) {
       barcode: it.barcode || "",
       image: it.image || "",
       note: it.note || "",
+      visibility: it.visibility,
     });
     setOpen(true);
   }
@@ -113,6 +119,17 @@ export function StorageClient({ initial }: { initial: Item[] }) {
     await deleteStorageItem(id);
     router.refresh();
   }
+  /** 切换公开 / 私密：只改当前账号自己的这条记录 */
+  async function toggle(it: Item) {
+    const next = it.visibility === "PUBLIC" ? "PRIVATE" : "PUBLIC";
+    setBusy(it.id);
+    try {
+      await setContentVisibility("storage", it.id, next);
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -130,6 +147,12 @@ export function StorageClient({ initial }: { initial: Item[] }) {
           </Button>
         </div>
       </div>
+
+      <p className="rounded-xl border border-border bg-surface px-4 py-3 text-xs leading-relaxed text-muted">
+        标为「公开」的物品会出现在
+        <Link href="/explore" target="_blank" rel="noopener noreferrer" className="mx-1 font-medium text-brand hover:underline">公开内容广场</Link>
+        ；公开时只展示名称、品类与备注，房间、具体位置、条码不会公开。
+      </p>
 
       {/* 搜索 + 筛选 */}
       <div className="flex flex-wrap gap-2">
@@ -208,12 +231,21 @@ export function StorageClient({ initial }: { initial: Item[] }) {
                   )}
                   {it.barcode && <p className="text-xs text-muted">条码：{it.barcode}</p>}
                   {it.note && <p className="mt-1 line-clamp-2 text-xs">{it.note}</p>}
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <button className="text-xs text-muted" onClick={() => openEdit(it)}>
                       <Pencil size={12} className="inline" /> 编辑
                     </button>
                     <button className="text-xs text-red-500" onClick={() => remove(it.id)}>
                       <Trash2 size={12} className="inline" /> 删除
+                    </button>
+                    <button
+                      className={`inline-flex items-center gap-1 text-xs ${it.visibility === "PUBLIC" ? "text-brand" : "text-muted"}`}
+                      onClick={() => toggle(it)}
+                      disabled={busy === it.id}
+                      title={it.visibility === "PUBLIC" ? "点击改为私密" : "点击公开到广场"}
+                    >
+                      {it.visibility === "PUBLIC" ? <Globe size={12} /> : <Lock size={12} />}
+                      {busy === it.id ? "切换中…" : it.visibility === "PUBLIC" ? "已公开" : "设为公开"}
                     </button>
                   </div>
                 </div>
@@ -247,6 +279,10 @@ export function StorageClient({ initial }: { initial: Item[] }) {
             <ImageField value={form.image || undefined} onChange={(url) => setForm({ ...form, image: url || "" })} />
           </div>
           <TextareaX value={form.note} onChange={(v) => setForm({ ...form, note: v })} />
+          <Select value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })}>
+            <option value="PRIVATE">私密（仅自己可见）</option>
+            <option value="PUBLIC">公开（出现在广场）</option>
+          </Select>
           <Button className="w-full" onClick={save} disabled={saving}>
             {saving ? "保存中…" : "保存"}
           </Button>

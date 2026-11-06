@@ -52,6 +52,12 @@ export default function PublicHomePage() {
                 {l.label}
               </a>
             ))}
+            <Link
+              href="/explore"
+              className="hidden rounded-full px-3 py-1.5 text-sm font-medium text-brand transition hover:bg-surface-2 sm:inline-block"
+            >
+              广场
+            </Link>
             <PublicThemeToggle />
             <Link
               href="/login"
@@ -128,12 +134,17 @@ export default function PublicHomePage() {
         <section id="channels" className="scroll-mt-24 border-t border-border py-20">
           <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
             <h2 className="text-3xl font-bold tracking-tight">我的频道</h2>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1 text-sm text-brand hover:underline"
-            >
-              登录后查看完整内容 <ArrowRight size={14} />
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <Link
+                href="/explore"
+                className="inline-flex items-center gap-1 text-sm text-brand hover:underline"
+              >
+                公开内容广场 <ArrowRight size={14} />
+              </Link>
+              <Link href="/login" className="text-sm text-muted transition hover:text-fg">
+                登录后查看完整内容
+              </Link>
+            </div>
           </div>
           <div className="grid gap-6 sm:grid-cols-3">
             {p.channels.map((c) => {
@@ -160,6 +171,19 @@ export default function PublicHomePage() {
               );
             })}
           </div>
+
+          <Link
+            href="/explore"
+            className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
+          >
+            <span>
+              <span className="block font-medium">公开内容广场</span>
+              <span className="mt-1 block text-sm leading-relaxed text-muted">
+                看看各账号主动分享的旅行、书单、影音与学习记录，无需登录即可浏览。
+              </span>
+            </span>
+            <ArrowRight size={18} className="shrink-0 text-brand" />
+          </Link>
         </section>
 
         {/* ================= 联系 ================= */}
