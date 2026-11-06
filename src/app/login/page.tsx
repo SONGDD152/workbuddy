@@ -25,7 +25,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "操作失败");
-      router.push("/");
+      router.push("/home");
       router.refresh();
     } catch (e: any) {
       setError(e.message);
@@ -101,7 +101,7 @@ export default function LoginPage() {
           数据云端同步，换设备无缝衔接。
         </p>
         <Link href="/" className="mt-2 block text-center text-xs text-muted underline">
-          仅预览首页（未登录）
+          返回公开主页
         </Link>
       </Card>
     </div>

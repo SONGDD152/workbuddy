@@ -68,17 +68,17 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
   return (
     <div className="flex h-full flex-col gap-1 p-3">
       <Link
-        href="/"
+        href="/home"
         className="mb-3 flex items-center gap-2 px-2 py-2 text-lg font-bold"
       >
         <span className="text-brand">◆</span> 我的频道
       </Link>
       <Link
-        href="/"
+        href="/home"
         onClick={onNav}
         className={cn(
           "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium",
-          pathname === "/" ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
+          pathname === "/home" ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
         )}
       >
         <Home size={18} /> 首页
