@@ -21,6 +21,7 @@ import {
   Moon,
   Sun,
   MessageCircle,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,15 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
           })}
         </div>
       ))}
+      <div className="mt-auto border-t border-border pt-3">
+        <Link
+          href="/install"
+          onClick={onNav}
+          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-fg"
+        >
+          <Download size={18} /> 安装 APP
+        </Link>
+      </div>
     </div>
   );
 }
@@ -155,7 +165,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const tabs: { href: string; label: string; icon: React.FC<any> }[] = [
-    { href: "/", label: "首页", icon: Home },
+    { href: "/home", label: "首页", icon: Home },
     { href: "/life/travel", label: "生活", icon: Heart },
     { href: "/library/books", label: "图书馆", icon: BookOpen },
     { href: "/work", label: "工作", icon: Briefcase },

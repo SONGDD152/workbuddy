@@ -18,6 +18,7 @@ const navLinks = [
   { href: "/#about", label: "关于" },
   { href: "/#channels", label: "频道" },
   { href: "/explore", label: "广场" },
+  { href: "/install", label: "安装 APP" },
 ];
 
 export default async function MomentsPage() {

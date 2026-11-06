@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BookOpen,
   Briefcase,
+  Download,
   Github,
   Heart,
   Mail,
@@ -64,6 +65,14 @@ export default function PublicHomePage() {
             >
               广场
             </Link>
+            <Link
+              href="/install"
+              aria-label="安装到手机或电脑"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium transition hover:border-brand hover:text-brand"
+            >
+              <Download size={15} />
+              <span className="hidden sm:inline">安装 APP</span>
+            </Link>
             <PublicThemeToggle />
             <Link
               href="/login"
@@ -100,6 +109,12 @@ export default function PublicHomePage() {
               className="rounded-full border border-border px-6 py-2.5 text-sm font-medium transition hover:bg-surface-2"
             >
               进入我的频道
+            </Link>
+            <Link
+              href="/install"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-sm font-medium transition hover:bg-surface-2"
+            >
+              <Download size={16} /> 装到手机 / 电脑
             </Link>
           </div>
         </section>
@@ -178,7 +193,7 @@ export default function PublicHomePage() {
             })}
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <Link
               href="/moments"
               className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
@@ -199,6 +214,18 @@ export default function PublicHomePage() {
                 <span className="block font-medium">公开内容广场</span>
                 <span className="mt-1 block text-sm leading-relaxed text-muted">
                   旅行、书单、影音与学习记录，无需登录即可浏览。
+                </span>
+              </span>
+              <ArrowRight size={18} className="shrink-0 text-brand" />
+            </Link>
+            <Link
+              href="/install"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-6 py-5 transition hover:border-brand"
+            >
+              <span>
+                <span className="block font-medium">装到手机 / 电脑</span>
+                <span className="mt-1 block text-sm leading-relaxed text-muted">
+                  扫二维码即可安装，两端共用同一份数据。
                 </span>
               </span>
               <ArrowRight size={18} className="shrink-0 text-brand" />

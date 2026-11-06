@@ -46,6 +46,7 @@ const navLinks = [
   { href: "/#skills", label: "技能" },
   { href: "/#channels", label: "频道" },
   { href: "/#contact", label: "联系" },
+  { href: "/install", label: "安装 APP" },
 ];
 
 type SearchParams = { [key: string]: string | string[] | undefined };

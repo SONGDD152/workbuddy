@@ -1,0 +1,57 @@
+{
+  "id": "/",
+  "name": "Song · 我的频道",
+  "short_name": "我的频道",
+  "description": "生活、图书馆、工作与朋友圈：一个手机和电脑都能装的个人空间。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fafaf9",
+  "theme_color": "#d97706",
+  "categories": ["lifestyle", "productivity", "social"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "朋友圈",
+      "short_name": "朋友圈",
+      "description": "看看最近公开的动态",
+      "url": "/moments",
+      "icons": [{ "src": "/icons/icon-64.png", "sizes": "64x64" }]
+    },
+    {
+      "name": "公开内容广场",
+      "short_name": "广场",
+      "url": "/explore",
+      "icons": [{ "src": "/icons/icon-64.png", "sizes": "64x64" }]
+    },
+    {
+      "name": "我的首页",
+      "short_name": "我的",
+      "url": "/home",
+      "icons": [{ "src": "/icons/icon-64.png", "sizes": "64x64" }]
+    }
+  ]
+}
