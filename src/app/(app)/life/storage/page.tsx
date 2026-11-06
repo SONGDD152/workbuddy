@@ -17,7 +17,13 @@ export default async function StoragePage() {
   const uid = await getUserId();
   const [items, warehouses] = await Promise.all([
     safe(
-      () => prisma.storageItem.findMany({ where: { userId: uid! }, orderBy: { createdAt: "desc" } }),
+      async () =>
+        (
+          await prisma.storageItem.findMany({
+            where: { userId: uid! },
+            orderBy: { createdAt: "desc" },
+          })
+        ).map((it) => ({ ...it, createdAt: it.createdAt.toISOString() })),
       []
     ),
     safe<WarehouseInfo[]>(

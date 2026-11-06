@@ -2,6 +2,8 @@ package online.songdd.xbgj;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -11,6 +13,7 @@ import android.hardware.biometrics.BiometricPrompt;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +38,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.concurrent.Executor;
 
@@ -57,6 +61,9 @@ import java.util.concurrent.Executor;
  * navigator.credentials 的平台认证器，需要 androidx.credentials + Google Play 服务 +
  * Digital Asset Links，国产机基本不可用。原生闸门是这里唯一可靠的实现路径。
  *
+ * v1.5.0 增加 DownloadListener：网页点「导出明细 / 下载 CSV」时，用系统
+ * DownloadManager 带上会话 Cookie 保存到「下载」目录，否则 WebView 默认静默丢弃下载。
+ *
  * 包内不打包任何网页代码，内容始终来自 https://songdd.online。
  */
 public class MainActivity extends Activity {
@@ -66,6 +73,7 @@ public class MainActivity extends Activity {
     private static final String LAUNCH_URL = SITE + "/app-launch";
     private static final int REQ_FILE = 1001;
     private static final int REQ_CAMERA = 1002;
+    private static final int REQ_STORAGE = 1003;
     private static final int BG_COLOR = Color.parseColor("#e1eff7");
     private static final int BRAND_COLOR = Color.parseColor("#5aa9e6");
     private static final int TEXT_COLOR = Color.parseColor("#284152");
@@ -80,6 +88,7 @@ public class MainActivity extends Activity {
     private TextView lockHint;
     private ValueCallback<Uri[]> filePathCallback;
     private PermissionRequest pendingCameraRequest;
+    private PendingDownload pendingDownload;
     private CancellationSignal bioCancel;
     private boolean landed = false;
     private boolean pageLoaded = false;
@@ -136,7 +145,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         // 站点据此识别「这是 App 内」，隐藏网页版专属的返回主页等出口
         String baseUa = s.getUserAgentString();
-        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.4.0");
+        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.5.0");
         web.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
         web.setWebViewClient(new WebViewClient() {
@@ -243,6 +252,29 @@ public class MainActivity extends Activity {
                     requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
                 }
             }
+        });
+
+        /**
+         * 网页点「下载 CSV」时，WebView 默认不会保存文件 —— 没有 DownloadListener
+         * 就会静默无反应。这里把本站的导出文件交给系统 DownloadManager，
+         * 并手动带上登录 Cookie（导出接口要鉴权，DownloadManager 不会自动带 WebView 的 cookie）。
+         */
+        web.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            Uri u = Uri.parse(url);
+            if (!HOST.equals(u.getHost())) {
+                launchExternal(url);
+                return;
+            }
+            // Android 9 及以下写公共「下载」目录需要存储权限；10+ 由系统分区存储托管，无需权限
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                    && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+                pendingDownload = new PendingDownload(url, contentDisposition, mimeType);
+                requestPermissions(
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
+                return;
+            }
+            saveDownload(url, contentDisposition, mimeType);
         });
 
         // 冷启动：已登录且系统支持生物识别时先上锁，onResume 里弹验证框。
@@ -456,6 +488,78 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 用系统下载器保存本站导出的 CSV；Cookie 必须手动带，否则接口会当作未登录。 */
+    private void saveDownload(String url, String contentDisposition, String mimeType) {
+        try {
+            String name = guessFileName(url, contentDisposition);
+            DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+            String cookie = CookieManager.getInstance().getCookie(url);
+            if (cookie != null && !cookie.isEmpty()) req.addRequestHeader("Cookie", cookie);
+            req.addRequestHeader("Referer", SITE + "/");
+            req.setMimeType("text/csv");
+            req.setTitle(name);
+            req.setDescription("小白管家 · 仓储明细");
+            req.setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+            boolean publicDir = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                    || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            == PackageManager.PERMISSION_GRANTED;
+            if (publicDir) {
+                req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+            } else {
+                // 用户拒绝权限时仍要能导出：落到应用专属外部目录，不需要任何权限
+                req.setDestinationInExternalFilesDir(
+                        this, Environment.DIRECTORY_DOWNLOADS, name);
+            }
+
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm == null) throw new IllegalStateException("DownloadManager unavailable");
+            dm.enqueue(req);
+            Toast.makeText(this, publicDir
+                            ? "明细开始下载，完成后在手机「下载」里查看：" + name
+                            : "明细开始下载，文件在 Android/data/online.songdd.xbgj/files/Download：" + name,
+                    Toast.LENGTH_LONG).show();
+        } catch (Throwable t) {
+            Toast.makeText(this, "保存失败，请在导出窗口点「复制明细」", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** 优先用服务端给的 ASCII 文件名，解析不出再退到 URL 末段；一律保证 .csv 结尾。 */
+    private String guessFileName(String url, String disposition) {
+        String name = "";
+        if (disposition != null) {
+            int i = disposition.toLowerCase().indexOf("filename=");
+            if (i >= 0) {
+                name = disposition.substring(i + "filename=".length()).trim();
+                int semi = name.indexOf(';');
+                if (semi >= 0) name = name.substring(0, semi);
+                name = name.replace("\"", "").replace("'", "").trim();
+            }
+        }
+        if (name.isEmpty()) {
+            String last = Uri.parse(url).getLastPathSegment();
+            name = last == null ? "" : last;
+        }
+        name = name.replace('/', '_').replace('\\', '_');
+        if (!name.toLowerCase().endsWith(".csv")) name = name + ".csv";
+        if (name.length() > 80) name = name.substring(name.length() - 80);
+        return name.isEmpty() ? "xiaobaiguanjia-storage.csv" : name;
+    }
+
+    /** 低版本等存储权限期间先把这次下载参数存下来。 */
+    private static class PendingDownload {
+        final String url;
+        final String disposition;
+        final String mimeType;
+
+        PendingDownload(String url, String disposition, String mimeType) {
+            this.url = url;
+            this.disposition = disposition;
+            this.mimeType = mimeType;
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -483,6 +587,12 @@ public class MainActivity extends Activity {
             } else {
                 r.deny(); // 用户拒绝也没关系，扫码页仍有相册识别 / 手动输入兜底
             }
+        }
+        if (requestCode == REQ_STORAGE && pendingDownload != null) {
+            // 无论是否授权都继续下载：拒绝时 saveDownload 会退到应用专属目录
+            PendingDownload p = pendingDownload;
+            pendingDownload = null;
+            saveDownload(p.url, p.disposition, p.mimeType);
         }
     }
 

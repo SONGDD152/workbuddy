@@ -17,6 +17,8 @@ import {
   RefreshCw,
   X,
   AlertTriangle,
+  FileSpreadsheet,
+  Check,
 } from "lucide-react";
 import { Button, Card, Modal, Input, Select, Badge, EmptyState } from "@/components/ui";
 import { ImageField } from "@/components/ImageField";
@@ -40,7 +42,15 @@ import {
   resolveWarehouse,
   autoStoreItem,
 } from "@/lib/actions";
-import { STORAGE_CATEGORY_LABEL } from "@/lib/constants";
+import { STORAGE_CATEGORY_LABEL, VISIBILITY_LABEL } from "@/lib/constants";
+import {
+  STORAGE_EXPORT_COLUMNS,
+  STORAGE_EXPORT_HEADERS,
+  buildStorageTsv,
+  matchesStorageExportFilter,
+  storageExportFileName,
+  type StorageExportRow,
+} from "@/lib/storage-export";
 
 type Item = {
   id: string;
@@ -54,6 +64,7 @@ type Item = {
   visibility: "PUBLIC" | "PRIVATE";
   warehouseId: string | null;
   quantity: number;
+  createdAt: string;
 };
 
 type Notice = { text: string; tone: "ok" | "warn" };
@@ -94,6 +105,11 @@ export function StorageClient({
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const [confirmBox, setConfirmBox] = React.useState<ConfirmBox | null>(null);
 
+  // 导出明细
+  const [exportOpen, setExportOpen] = React.useState(false);
+  const [exportScope, setExportScope] = React.useState<"filtered" | "all">("filtered");
+  const [copied, setCopied] = React.useState(false);
+
   // 仓库管理
   const [whOpen, setWhOpen] = React.useState(false);
   const [whEditing, setWhEditing] = React.useState<WarehouseInfo | null>(null);
@@ -113,18 +129,53 @@ export function StorageClient({
     []
   );
 
-  const filtered = items.filter((i) => {
-    const q = query.trim().toLowerCase();
-    const hit =
-      !q ||
-      [i.name, i.category, i.room, i.position, i.note, i.barcode]
-        .filter(Boolean)
-        .some((f) => f!.toLowerCase().includes(q));
-    const whHit =
-      !whFilter ||
-      (whFilter === "__none__" ? !i.warehouseId : i.warehouseId === whFilter);
-    return hit && (!cat || i.category === cat) && whHit;
-  });
+  // 导出用的行与页面列表共用同一份筛选判断，保证「看到的 = 导出的」
+  const displayFilter = React.useMemo(
+    () => ({
+      q: query,
+      cat: cat ? STORAGE_CATEGORY_LABEL[cat] || "" : "",
+      wh:
+        whFilter === "__none__"
+          ? "__none__"
+          : warehouses.find((w) => w.id === whFilter)?.name || "",
+    }),
+    [query, cat, whFilter, warehouses]
+  );
+
+  const toExportRow = React.useCallback(
+    (it: Item): StorageExportRow => {
+      const whName = warehouses.find((w) => w.id === it.warehouseId)?.name || "";
+      return {
+        name: it.name,
+        category: STORAGE_CATEGORY_LABEL[it.category] || it.category,
+        warehouse: whName,
+        room: it.room && it.room !== whName ? it.room : "",
+        position: it.position || "",
+        quantity: it.quantity || 1,
+        barcode: it.barcode || "",
+        note: it.note || "",
+        visibility: VISIBILITY_LABEL[it.visibility] || it.visibility,
+        createdAt: formatBeijing(it.createdAt),
+      };
+    },
+    [warehouses]
+  );
+
+  const filtered = items.filter((it) =>
+    matchesStorageExportFilter(toExportRow(it), displayFilter)
+  );
+  const filteredExportRows = filtered.map(toExportRow);
+  const allExportRows = items.map(toExportRow);
+  const exportRows = exportScope === "all" ? allExportRows : filteredExportRows;
+
+  const exportParams = new URLSearchParams();
+  if (exportScope === "filtered") {
+    if (displayFilter.q.trim()) exportParams.set("q", displayFilter.q.trim());
+    if (displayFilter.cat) exportParams.set("cat", displayFilter.cat);
+    if (displayFilter.wh) exportParams.set("wh", displayFilter.wh);
+  }
+  const qs = exportParams.toString();
+  const exportHref = "/api/storage/export" + (qs ? `?${qs}` : "");
 
   const stats = React.useMemo(() => {
     const byCat: Record<string, number> = {};
@@ -135,6 +186,41 @@ export function StorageClient({
     }
     return { total: items.length, byCat, unassigned };
   }, [items]);
+
+  // ---------- 导出明细 ----------
+  async function copyExportRows() {
+    if (!exportRows.length) {
+      show("当前范围内没有可导出的物品", "warn");
+      return;
+    }
+    const text = buildStorageTsv(exportRows);
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      // 部分 WebView 禁用异步剪贴板，退回「选中隐藏文本域 + execCommand」
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;left:-9999px;opacity:0";
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) {
+      show("自动复制被浏览器拒绝，请点「下载 CSV」，或在预览表格里长按选择", "warn");
+      return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2500);
+    show(`已复制 ${exportRows.length} 条明细，可直接粘贴到 Excel / WPS / 微信`);
+  }
 
   // ---------- 物品 ----------
   function openNew(barcode?: string) {
@@ -413,7 +499,7 @@ export function StorageClient({
         <div>
           <h1 className="text-2xl font-bold">家庭仓储</h1>
           <p className="text-sm text-muted">
-            {warehouses.length} 个仓库 · {stats.total} 件物品 · 两段扫码自动入库
+            {warehouses.length} 个仓库 · {stats.total} 件物品 · 两段扫码入库 · 明细可导出
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -425,6 +511,16 @@ export function StorageClient({
           </Button>
           <Button variant="outline" onClick={() => openNew()}>
             <Plus size={16} /> 手动添加
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setExportScope("filtered");
+              setCopied(false);
+              setExportOpen(true);
+            }}
+          >
+            <FileSpreadsheet size={16} /> 导出明细
           </Button>
         </div>
       </div>
@@ -746,6 +842,101 @@ export function StorageClient({
         )}
       </Modal>
 
+      {/* 导出明细 */}
+      <Modal open={exportOpen} onClose={() => setExportOpen(false)} title="导出仓储明细">
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-muted">
+            包含 <strong className="font-medium text-fg">物品名称、类型、所属仓库、房间 / 区域、存放位置、数量、条码、备注、可见性、登记时间</strong>
+            共 10 列；只导出当前账号自己的物品，不含照片，也不会带上其它账号的数据。
+          </p>
+
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">导出范围</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { key: "filtered", label: "当前筛选", count: filteredExportRows.length },
+                  { key: "all", label: "全部物品", count: allExportRows.length },
+                ] as const
+              ).map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setExportScope(s.key)}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-left text-xs transition",
+                    exportScope === s.key
+                      ? "border-brand bg-surface-2 text-brand"
+                      : "border-border text-muted hover:border-brand"
+                  )}
+                >
+                  <span className="block text-sm font-medium">{s.label}</span>
+                  <span className="mt-0.5 block">{s.count} 条</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+              「当前筛选」跟随上方的搜索词、品类和仓库筛选；选「全部物品」则忽略筛选。
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted">
+              明细预览（前 6 条，共 {exportRows.length} 条）
+            </p>
+            {exportRows.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted">
+                这个范围里还没有物品
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="bg-surface-2 text-muted">
+                    <tr>
+                      {STORAGE_EXPORT_HEADERS.map((h) => (
+                        <th key={h} className="whitespace-nowrap px-3 py-2 font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exportRows.slice(0, 6).map((r, i) => (
+                      <tr key={i} className="border-t border-border">
+                        {STORAGE_EXPORT_COLUMNS.map((c) => (
+                          <td key={c.key} className="max-w-[180px] truncate whitespace-nowrap px-3 py-2">
+                            {r[c.key]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <a
+              href={exportHref}
+              download={storageExportFileName()}
+              onClick={() =>
+                show("已开始生成 CSV：网页会直接下载；App 内升级到 v1.5.0 后会保存到手机「下载」目录")
+              }
+              className="tap inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-medium text-brand-fg transition hover:opacity-90"
+            >
+              <Download size={16} /> 下载 CSV 文件
+            </a>
+            <Button variant="outline" onClick={copyExportRows} disabled={!exportRows.length}>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              {copied ? "已复制" : "复制明细"}
+            </Button>
+          </div>
+
+          <p className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-muted">
+            CSV 带 UTF-8 BOM，Excel / WPS / 数字表格双击打开中文不乱码；「复制明细」是制表符文本，粘进表格会自动分列。
+            <strong className="font-medium text-fg">App 内保存下载文件需要 v1.5.0 及以上</strong>，旧版可先用「复制明细」粘贴到微信或备忘录。
+          </p>
+        </div>
+      </Modal>
+
       {/* 自定义确认框：WebView 里 window.confirm 可能不弹，这里统一用页面内弹窗 */}
       <Modal open={!!confirmBox} onClose={() => setConfirmBox(null)} title={confirmBox?.title}>
         <p className="text-sm leading-relaxed text-muted">{confirmBox?.text}</p>
@@ -804,6 +995,16 @@ export function StorageClient({
       )}
     </div>
   );
+}
+
+/** 与导出接口一致：登记时间统一按北京时间（UTC+8）显示 */
+function formatBeijing(iso?: string): string {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  const b = new Date(t.getTime() + 8 * 60 * 60 * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${b.getUTCFullYear()}-${p(b.getUTCMonth() + 1)}-${p(b.getUTCDate())} ${p(b.getUTCHours())}:${p(b.getUTCMinutes())}`;
 }
 
 function TextareaX({ value, onChange }: { value: string; onChange: (v: string) => void }) {
