@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">小白管家</string>
+    <string name="lock_title">小白管家已锁定</string>
+    <string name="lock_hint">验证指纹或面容后继续，保护和账号有关的内容</string>
+    <string name="lock_retry">用指纹解锁</string>
+    <string name="lock_password">改用密码登录</string>
+    <string name="lock_failed">没识别出来，再试一次</string>
+    <string name="lock_canceled">已取消，可以重试或改用密码登录</string>
+    <string name="lock_lockout">尝试次数过多，请稍后再试</string>
+    <string name="lock_no_bio">本机暂不支持或还没录入指纹，已直接打开</string>
+    <string name="bio_title">验证身份，进入小白管家</string>
+    <string name="bio_subtitle">使用已录入的指纹或面容</string>
+    <string name="bio_negative">改用密码登录</string>
 </resources>
