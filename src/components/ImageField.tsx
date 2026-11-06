@@ -66,6 +66,11 @@ async function compress(file: File): Promise<string> {
   return out;
 }
 
+/** 供 TravelForm 等批量选图复用：把图片压缩成 WebP data URL。 */
+export async function compressImage(file: File): Promise<string> {
+  return compress(file);
+}
+
 export function ImageField({
   value,
   onChange,

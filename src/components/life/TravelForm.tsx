@@ -9,13 +9,15 @@ import {
   Save,
   MapPin,
   ImagePlus,
+  Images,
+  Loader2,
   X,
   Trash2,
   Globe,
   Lock,
 } from "lucide-react";
 import { Button, Input, Textarea, Select, Card } from "@/components/ui";
-import { ImageField } from "@/components/ImageField";
+import { ImageField, compressImage } from "@/components/ImageField";
 import { createTravel, updateTravel } from "@/lib/actions";
 import { fmtDate } from "@/lib/utils";
 
@@ -50,9 +52,29 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
   });
   const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const batchRef = React.useRef<HTMLInputElement>(null);
+  const [batchBusy, setBatchBusy] = React.useState(false);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function handleBatch(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setBatchBusy(true);
+    const urls: string[] = [];
+    const failed: string[] = [];
+    for (const f of Array.from(files)) {
+      if (!f.type.startsWith("image/")) continue;
+      try {
+        urls.push(await compressImage(f));
+      } catch {
+        failed.push(f.name || "一张图片");
+      }
+    }
+    if (urls.length) setForm((f) => ({ ...f, images: [...f.images, ...urls] }));
+    setBatchBusy(false);
+    if (failed.length) alert(`有 ${failed.length} 张图片处理失败（可能过大），已跳过`);
   }
 
   async function save() {
@@ -124,8 +146,14 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
 
       {/* 照片 */}
       <Card className="space-y-3 p-4">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <ImagePlus size={16} className="text-brand" /> 照片（可多张）
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ImagePlus size={16} className="text-brand" /> 照片（可多张）
+          </div>
+          <Button variant="outline" onClick={() => batchRef.current?.click()} disabled={batchBusy}>
+            {batchBusy ? <Loader2 size={16} className="animate-spin" /> : <Images size={16} />}
+            {batchBusy ? "处理中…" : "从相册批量选图"}
+          </Button>
         </div>
         {form.images.length > 0 && (
           <div className="flex flex-wrap gap-2.5">
@@ -136,7 +164,7 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
                 <button
                   type="button"
                   className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white"
-                  onClick={() => set("images", form.images.filter((_, j) => j !== i))}
+                  onClick={() => setForm((f) => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
                   aria-label="移除"
                 >
                   <X size={11} />
@@ -145,7 +173,22 @@ export function TravelForm({ initial }: { initial?: TravelFormValue }) {
             ))}
           </div>
         )}
-        <ImageField value={undefined} onChange={(url) => url && set("images", [...form.images, url])} />
+        <ImageField
+          value={undefined}
+          onChange={(url) => url && setForm((f) => ({ ...f, images: [...f.images, url] }))}
+        />
+        <input
+          ref={batchRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            e.target.value = "";
+            handleBatch(files);
+          }}
+        />
       </Card>
 
       {/* 地点 + 日期 */}
