@@ -8,6 +8,10 @@ on:
       - 'android-native/**'
       - '.github/workflows/webview-build.yml'
 
+# 允许用内置 GITHUB_TOKEN 发布 Release（不需要额外的个人令牌）
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -60,3 +64,25 @@ jobs:
           name: xiaobaiguanjia-webview-android
           path: android-native/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      # 同时发一份到 Release：公开仓库的 Release 资产可匿名下载，
+      # 便于把安装包同步到站点 /downloads/，不必依赖任何个人令牌。
+      # 版本号直接读 build.gradle，避免 workflow 和 Gradle 各写一份。
+      - name: Publish APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android-native/app/build.gradle | head -1)
+          TAG="v${VERSION}"
+          ASSET="xiaobaiguanjia-${VERSION}.apk"
+          APK="android-native/app/build/outputs/apk/release/app-release.apk"
+          cp "$APK" "/tmp/${ASSET}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "更新已有 Release ${TAG}"
+          else
+            gh release create "$TAG" --title "小白管家 v${VERSION}" \
+              --target "$GITHUB_SHA" \
+              --notes "小白管家 Android 安装包 v${VERSION}。签名密钥与旧版一致，可直接覆盖安装。"
+          fi
+          gh release upload "$TAG" "/tmp/${ASSET}#${ASSET}" --clobber
+          echo "已发布 https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
