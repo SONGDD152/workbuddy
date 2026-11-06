@@ -27,7 +27,7 @@ const APK = {
   file: "xiaobaiguanjia-v1.5.0.apk",
   href: "/downloads/xiaobaiguanjia-v1.5.0.apk",
   version: "1.5.0",
-  size: "109 KB",
+  size: "108 KB",
   packageId: "online.songdd.xbgj",
   releaseUrl:
     "https://github.com/SONGDD152/workbuddy/releases/download/v1.5.0/xiaobaiguanjia-v1.5.0.apk",
