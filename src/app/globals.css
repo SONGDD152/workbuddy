@@ -144,6 +144,27 @@ body {
   overflow: hidden;
 }
 
+/* App 启动中转页：复用登录页的淡蓝色板，插画用白边从背景里托起来 */
+.launch-screen .launch-art {
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 40px -22px rgba(38, 96, 140, 0.55);
+}
+
+/* 细进度条：只在系统允许动效时滑动，减少动态效果偏好下保持静态 */
+@media (prefers-reduced-motion: no-preference) {
+  .launch-screen .launch-progress > span {
+    animation: launch-slide 1.4s ease-in-out infinite;
+  }
+}
+@keyframes launch-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
 /* 无障碍：尊重「减少动态效果」系统偏好 */
 @media (prefers-reduced-motion: reduce) {
   *,
