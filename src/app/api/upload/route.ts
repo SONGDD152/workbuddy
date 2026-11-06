@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { getUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // 上传接口必须要求登录，避免未授权写入
+  const uid = await getUserId();
+  if (!uid) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   try {
     const form = await req.formData();
     const file = form.get("file") as File | null;

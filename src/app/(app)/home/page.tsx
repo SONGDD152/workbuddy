@@ -1,6 +1,8 @@
 import * as React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import { Card, Badge } from "@/components/ui";
 import { CoverCarousel, type Slide } from "@/components/home/CoverCarousel";
 import { TodayBar } from "@/components/home/TodayBar";
@@ -29,27 +31,31 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export default async function HomePage() {
+  // 仪表盘统计与封面必须限定在当前登录账号，避免跨账号数据串台
+  const uid = await getUserId();
+  if (!uid) redirect("/login");
+
   const [travels, counts] = await Promise.all([
     safe(
       () =>
         prisma.travel.findMany({
-          where: { images: { isEmpty: false } },
+          where: { userId: uid, images: { isEmpty: false } },
           orderBy: { date: "desc" },
           take: 8,
         }),
       []
     ),
     Promise.all([
-      safe(() => prisma.travel.count(), 0),
-      safe(() => prisma.clothing.count(), 0),
-      safe(() => prisma.storageItem.count(), 0),
-      safe(() => prisma.foodRecord.count(), 0),
-      safe(() => prisma.hobby.count(), 0),
-      safe(() => prisma.gardenPlant.count(), 0),
-      safe(() => prisma.book.count(), 0),
-      safe(() => prisma.movie.count(), 0),
-      safe(() => prisma.study.count(), 0),
-      safe(() => prisma.diary.count(), 0),
+      safe(() => prisma.travel.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.clothing.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.storageItem.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.foodRecord.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.hobby.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.gardenPlant.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.book.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.movie.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.study.count({ where: { userId: uid } }), 0),
+      safe(() => prisma.diary.count({ where: { userId: uid } }), 0),
     ]),
   ]);
 
