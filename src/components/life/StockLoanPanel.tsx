@@ -186,6 +186,12 @@ export function StockLoanPanel({
               <Plus size={16} /> 新建出库
             </Button>
             <Link
+              href="/life/storage/loans"
+              className="tap inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm transition hover:bg-surface-2"
+            >
+              <PackageMinus size={15} /> 借出清单
+            </Link>
+            <Link
               href="/life/storage/alerts"
               className="tap inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm transition hover:bg-surface-2"
             >

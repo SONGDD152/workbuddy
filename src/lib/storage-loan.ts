@@ -80,3 +80,54 @@ export function loanedQuantity(loans: Pick<LoanInfo, "itemId" | "type" | "return
     .filter((l) => l.itemId === itemId && l.type === "RETURNABLE" && !l.returnedAt)
     .reduce((sum, l) => sum + l.quantity, 0);
 }
+
+/** 借出清单导出用的中文表头（与页面列严格一致） */
+export const LOAN_EXPORT_HEADERS = [
+  "物品名称",
+  "出借类型",
+  "数量",
+  "借用人",
+  "所属仓库",
+  "借出时间",
+  "应还时间",
+  "归还时间",
+  "状态",
+  "累计延期(小时)",
+  "备注",
+];
+
+/** 人话状态：借出中 / 即将到期 / 已超期 / 已归还 / 消耗性(已出库) */
+export function loanStatusLabel(loan: LoanInfo, now = Date.now()): string {
+  if (loan.type === "CONSUMABLE") return "消耗性(已出库)";
+  const s = loanState(loan, now);
+  if (s === "done") return "已归还";
+  if (s === "overdue") return "已超期";
+  if (s === "urgent") return "即将到期";
+  return "借出中";
+}
+
+/** 借出清单 CSV：不含 BOM，BOM 在浏览器下载时补，方便 Excel 直接打开不乱码 */
+export function buildLoanCsv(rows: LoanInfo[], now = Date.now()): string {
+  const esc = (v: string | number) => {
+    const raw = v == null ? "" : String(v);
+    const safe = /^[=+@\t\r]/.test(raw) ? "'" + raw : raw;
+    return `"${safe.replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
+  };
+  const line = (c: (string | number)[]) => c.map(esc).join(",");
+  const body = rows.map((l) =>
+    line([
+      l.itemName,
+      LOAN_TYPE_LABEL[l.type],
+      l.quantity,
+      l.borrower || "",
+      l.warehouseName || "",
+      formatBeijing(l.lentAt),
+      formatBeijing(l.dueAt),
+      formatBeijing(l.returnedAt),
+      loanStatusLabel(l, now),
+      l.extensionHours,
+      l.note || "",
+    ])
+  );
+  return [line(LOAN_EXPORT_HEADERS), ...body].join("\r\n") + "\r\n";
+}
