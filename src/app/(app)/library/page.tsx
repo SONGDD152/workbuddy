@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getUserId } from "@/lib/auth";
 import { FuncGroup, FuncEntry } from "@/components/FunctionDirectory";
-import { BookOpen, Clapperboard, GraduationCap, NotebookPen } from "lucide-react";
+import { MODULES } from "@/lib/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,15 @@ export default async function LibraryPage() {
     safeCount(() => prisma.diary.count({ where: { userId: uid } })),
   ]);
 
+  const counts: Record<string, number> = {
+    "/library/books": book,
+    "/library/movies": movie,
+    "/library/study": study,
+    "/library/diary": diary,
+  };
+
+  const library = MODULES.find((m) => m.key === "library")!;
+
   return (
     <div className="space-y-4">
       <header>
@@ -32,16 +41,22 @@ export default async function LibraryPage() {
         <p className="text-sm text-muted">读书 · 观影 · 学习 · 日记</p>
       </header>
 
-      {/* 功能导航：与仓储页一致的分组快捷入口目录 */}
+      {/* 功能导航：分组快捷入口目录，结构由 modules.tsx 单一提供 */}
       <div className="space-y-4 rounded-2xl border border-border bg-surface/60 p-4">
-        <FuncGroup title="阅读与学习">
-          <FuncEntry icon={BookOpen} title="读书笔记" hint="笔记 + AI 读书报告" href="/library/books" badge={book} />
-          <FuncEntry icon={GraduationCap} title="专业学习" hint="主题笔记 + 总结报告" href="/library/study" badge={study} />
-        </FuncGroup>
-        <FuncGroup title="记录与分享">
-          <FuncEntry icon={Clapperboard} title="影评" hint="碎片记录 + 观影报告" href="/library/movies" badge={movie} />
-          <FuncEntry icon={NotebookPen} title="日记" hint="纯文字时间线" href="/library/diary" badge={diary} />
-        </FuncGroup>
+        {library.groups.map((g) => (
+          <FuncGroup key={g.title} title={g.title}>
+            {g.items.map((it) => (
+              <FuncEntry
+                key={it.href}
+                icon={it.icon}
+                title={it.label}
+                hint={it.hint}
+                href={it.href}
+                badge={counts[it.href]}
+              />
+            ))}
+          </FuncGroup>
+        ))}
       </div>
     </div>
   );

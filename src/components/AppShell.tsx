@@ -5,16 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import {
   Home,
-  Plane,
-  Shirt,
-  Boxes,
-  Utensils,
   Heart,
-  Sprout,
   BookOpen,
-  Clapperboard,
-  GraduationCap,
-  NotebookPen,
   Briefcase,
   Menu,
   X,
@@ -23,44 +15,21 @@ import {
   MessageCircle,
   Download,
 } from "lucide-react";
+import { MODULES } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { useKeyboardInset } from "@/lib/useKeyboardInset";
+import { ModuleTabs } from "@/components/ModuleTabs";
 
 type Item = { href: string; label: string; icon: React.FC<any> };
 type Group = { label: string; icon: React.FC<any>; href: string; items: Item[] };
 
-const NAV: Group[] = [
-  {
-    label: "生活",
-    icon: Heart,
-    href: "/life/travel",
-    items: [
-      { href: "/life/travel", label: "旅行摄影", icon: Plane },
-      { href: "/life/wardrobe", label: "衣橱穿搭", icon: Shirt },
-      { href: "/life/storage", label: "家庭仓储", icon: Boxes },
-      { href: "/life/food", label: "餐饮", icon: Utensils },
-      { href: "/life/hobbies", label: "兴趣爱好", icon: Heart },
-      { href: "/life/garden", label: "园艺种植", icon: Sprout },
-    ],
-  },
-  {
-    label: "图书馆",
-    icon: BookOpen,
-    href: "/library/books",
-    items: [
-      { href: "/library/books", label: "读书笔记", icon: BookOpen },
-      { href: "/library/movies", label: "影评", icon: Clapperboard },
-      { href: "/library/study", label: "专业学习", icon: GraduationCap },
-      { href: "/library/diary", label: "日记", icon: NotebookPen },
-    ],
-  },
-  {
-    label: "工作",
-    icon: Briefcase,
-    href: "/work",
-    items: [{ href: "/work", label: "建设中", icon: Briefcase }],
-  },
-];
+// 侧栏与底部 Tab 统一由 modules.tsx 派生，避免三套模块定义各写各的
+const NAV: Group[] = MODULES.map((m) => ({
+  label: m.label,
+  icon: m.icon,
+  href: m.href,
+  items: m.items.map((it) => ({ href: it.href, label: it.label, icon: it.icon })),
+}));
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
@@ -98,9 +67,18 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
       </Link>
       {NAV.map((g) => (
         <div key={g.label} className="mt-3">
-          <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          <Link
+            href={g.href}
+            onClick={onNav}
+            className={cn(
+              "flex items-center rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wide",
+              pathname.startsWith(g.href)
+                ? "text-brand"
+                : "text-muted transition hover:text-fg"
+            )}
+          >
             {g.label}
-          </p>
+          </Link>
           {g.items.map((it) => {
             const Icon = it.icon;
             const active = isActive(pathname, it.href);
@@ -169,8 +147,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const tabs: { href: string; label: string; icon: React.FC<any> }[] = [
     { href: "/home", label: "首页", icon: Home },
-    { href: "/life/travel", label: "生活", icon: Heart },
-    { href: "/library/books", label: "图书馆", icon: BookOpen },
+    { href: "/life", label: "生活", icon: Heart },
+    { href: "/library", label: "图书馆", icon: BookOpen },
     { href: "/work", label: "工作", icon: Briefcase },
   ];
 
@@ -227,6 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 lg:pb-10">
+          <ModuleTabs />
           {children}
         </main>
       </div>
