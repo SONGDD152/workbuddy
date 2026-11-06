@@ -19,7 +19,7 @@ export function FuncEntry({
   badge,
   disabled,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   hint?: string;
   href?: string;
@@ -30,7 +30,7 @@ export function FuncEntry({
   const inner = (
     <span className="flex items-center gap-3 text-left">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-        <Icon size={18} />
+        {Icon ? <Icon size={18} /> : <span className="text-sm leading-none">◆</span>}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">

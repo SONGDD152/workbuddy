@@ -11,20 +11,26 @@ import {
   GraduationCap,
   NotebookPen,
   Briefcase,
+  ClipboardList,
+  AlertTriangle,
+  Printer,
 } from "lucide-react";
 
 /**
  * 全站模块单一数据源：
- * - AppShell 侧栏 / 底部 Tab 由此派生（保证子项与顺序唯一）
+ * - AppShell 左侧折叠树（NavTree）由此派生（保证子项与顺序唯一）
  * - 模块落地页（/life、/library）的分组目录由此渲染
- * - 内容页左侧「固定子模块导航列」（ModuleSideNav）由此派生
- * 改模块结构只改这一处即可，避免三套定义各写各的。
+ * 改模块结构只改这一处即可，避免多套定义各写各的。
+ *
+ * ModuleEntry.icon 可选（深层子页可不带图标，渲染为圆点）。
+ * children 用于多级折叠：如「家庭仓储」下挂 仓储总览/借出清单/预警大屏/标签打印。
  */
 export type ModuleEntry = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   hint?: string;
+  children?: ModuleEntry[];
 };
 
 export type ModuleSubGroup = { title: string; items: ModuleEntry[] };
@@ -36,7 +42,7 @@ export type ModuleGroup = {
   href: string;
   /** 落地页里的分组（如 生活记录 / 物品管理）；空数组表示暂无子页 */
   groups: ModuleSubGroup[];
-  /** 扁平子项，供侧栏与顶部同级导航使用（顺序即展示顺序） */
+  /** 左侧导航树的子项（顺序即展示顺序）；可带 children 形成多级 */
   items: ModuleEntry[];
 };
 
@@ -69,7 +75,18 @@ export const MODULES: ModuleGroup[] = [
       { href: "/life/food", label: "餐饮", icon: Utensils, hint: "节气家常菜 + 饮食记录" },
       { href: "/life/hobbies", label: "兴趣爱好", icon: Heart, hint: "领域时间线 + 进度" },
       { href: "/life/garden", label: "园艺种植", icon: Sprout, hint: "节气种植 + 养护提醒" },
-      { href: "/life/storage", label: "家庭仓储", icon: Boxes, hint: "二维码出入库 · 借还超期预警" },
+      {
+        href: "/life/storage",
+        label: "家庭仓储",
+        icon: Boxes,
+        hint: "二维码出入库 · 借还超期预警",
+        children: [
+          { href: "/life/storage", label: "仓储总览", icon: Boxes },
+          { href: "/life/storage/loans", label: "借出清单", icon: ClipboardList },
+          { href: "/life/storage/alerts", label: "预警大屏", icon: AlertTriangle },
+          { href: "/life/storage/labels", label: "标签打印", icon: Printer },
+        ],
+      },
       { href: "/life/wardrobe", label: "衣橱穿搭", icon: Shirt, hint: "智能穿搭 + 天气推荐" },
     ],
   },
@@ -111,7 +128,7 @@ export const MODULES: ModuleGroup[] = [
   },
 ];
 
-/** 当前路径所属模块（含落地页本身）；用于判断是否需要展示子页导航 */
+/** 当前路径所属模块（含落地页本身）；用于判断该展示哪棵导航树 */
 export function findModule(pathname: string): ModuleGroup | undefined {
   return MODULES.find(
     (m) => pathname === m.href || pathname.startsWith(m.href + "/")

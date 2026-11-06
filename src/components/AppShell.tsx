@@ -12,103 +12,13 @@ import {
   X,
   Moon,
   Sun,
-  MessageCircle,
-  Download,
 } from "lucide-react";
-import { MODULES } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { useKeyboardInset } from "@/lib/useKeyboardInset";
-import { ModuleSideNav } from "@/components/ModuleSideNav";
-
-type Item = { href: string; label: string; icon: React.FC<any> };
-type Group = { label: string; icon: React.FC<any>; href: string; items: Item[] };
-
-// 侧栏与底部 Tab 统一由 modules.tsx 派生，避免三套模块定义各写各的
-const NAV: Group[] = MODULES.map((m) => ({
-  label: m.label,
-  icon: m.icon,
-  href: m.href,
-  items: m.items.map((it) => ({ href: it.href, label: it.label, icon: it.icon })),
-}));
+import { NavTree } from "@/components/NavTree";
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
-}
-
-function SidebarContent({ onNav }: { onNav?: () => void }) {
-  const pathname = usePathname();
-  return (
-    <div className="flex h-full flex-col gap-1 p-3">
-      <Link
-        href="/home"
-        className="mb-3 flex items-center gap-2 px-2 py-2 text-lg font-bold"
-      >
-        <span className="text-brand">◆</span> 小白管家
-      </Link>
-      <Link
-        href="/home"
-        onClick={onNav}
-        className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium",
-          pathname === "/home" ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
-        )}
-      >
-        <Home size={18} /> 首页
-      </Link>
-      <Link
-        href="/moments"
-        onClick={onNav}
-        className={cn(
-          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium",
-          pathname === "/moments" ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
-        )}
-      >
-        <MessageCircle size={18} /> 朋友圈
-      </Link>
-      {NAV.map((g) => (
-        <div key={g.label} className="mt-3">
-          <Link
-            href={g.href}
-            onClick={onNav}
-            className={cn(
-              "flex items-center rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wide",
-              pathname.startsWith(g.href)
-                ? "text-brand"
-                : "text-muted transition hover:text-fg"
-            )}
-          >
-            {g.label}
-          </Link>
-          {g.items.map((it) => {
-            const Icon = it.icon;
-            const active = isActive(pathname, it.href);
-            return (
-              <Link
-                key={it.href}
-                href={it.href}
-                onClick={onNav}
-                className={cn(
-                  "mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-sm",
-                  active ? "bg-brand text-brand-fg" : "hover:bg-surface-2"
-                )}
-              >
-                <Icon size={18} /> {it.label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-      <div className="mt-auto border-t border-border pt-3">
-        <Link
-          href="/install"
-          onClick={onNav}
-          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-fg"
-        >
-          <Download size={18} /> 安装 APP
-        </Link>
-      </div>
-    </div>
-  );
 }
 
 function ThemeToggle() {
@@ -154,9 +64,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      {/* 桌面侧边栏 */}
+      {/* 桌面：金蝶式可折叠左侧导航树（常驻） */}
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-64 border-r border-border bg-surface lg:block">
-        <SidebarContent />
+        <NavTree />
       </aside>
 
       {/* 移动端顶栏 */}
@@ -172,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ThemeToggle />
       </header>
 
-      {/* 移动端抽屉 */}
+      {/* 移动端抽屉：与桌面同一棵导航树 */}
       {drawer && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
@@ -181,12 +91,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
           <div className="absolute left-0 top-0 h-full w-72 animate-slide-up bg-surface shadow-xl">
             <button
-              className="absolute right-2 top-2 tap rounded-lg p-2 hover:bg-surface-2"
+              className="absolute right-2 top-2 z-10 tap rounded-lg p-2 hover:bg-surface-2"
               onClick={() => setDrawer(false)}
+              aria-label="关闭"
             >
               <X size={18} />
             </button>
-            <SidebarContent onNav={() => setDrawer(false)} />
+            <NavTree onNav={() => setDrawer(false)} />
             <div className="border-t border-border p-3">
               <Button variant="ghost" className="w-full" onClick={logout}>
                 登出
@@ -205,14 +116,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-4 lg:pb-10">
-          <div className="flex gap-2">
-            <ModuleSideNav />
-            <div className="min-w-0 flex-1">{children}</div>
-          </div>
+          {children}
         </main>
       </div>
 
-      {/* 移动端底部 Tab */}
+      {/* 移动端底部 Tab（快速切换顶层模块） */}
       <nav
         className={cn(
           "fixed bottom-0 left-0 right-0 z-30 flex border-t border-border bg-surface lg:hidden",
