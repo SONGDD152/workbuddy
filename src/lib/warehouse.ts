@@ -8,6 +8,8 @@
  */
 
 export const WAREHOUSE_QR_PREFIX = "XBGJ-WH:";
+/** 物品档案二维码：与仓库码前缀不同，扫码时能立刻区分该走入库还是出库 */
+export const ITEM_QR_PREFIX = "XBGJ-IT:";
 
 /** 传给仓储页面的仓库摘要（不含 createdAt / userId，避免序列化无关字段） */
 export type WarehouseInfo = {
@@ -42,4 +44,26 @@ export function parseWarehouseCode(text: unknown): string | null {
 /** 判断一段扫码文本是否明确是仓库码（用于入库第二阶段切换仓库） */
 export function isWarehouseQr(text: unknown): boolean {
   return parseWarehouseCode(text) !== null;
+}
+
+/** 物品档案二维码内容 */
+export function itemQrValue(code: string): string {
+  return ITEM_QR_PREFIX + code;
+}
+
+/** 从扫码文本里取出物品令牌；不是物品码时返回 null（可能是普通商品条码） */
+export function parseItemCode(text: unknown): string | null {
+  const raw = String(text ?? "").trim();
+  if (!raw) return null;
+  const at = raw.toUpperCase().indexOf(ITEM_QR_PREFIX.toUpperCase());
+  if (at < 0) return null;
+  const token = raw
+    .slice(at + ITEM_QR_PREFIX.length)
+    .trim()
+    .split(/[\s?#&]/)[0];
+  return /^[A-Za-z0-9_-]{6,64}$/.test(token) ? token : null;
+}
+
+export function isItemQr(text: unknown): boolean {
+  return parseItemCode(text) !== null;
 }

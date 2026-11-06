@@ -72,7 +72,7 @@ export default async function HomePage() {
   }[] = [
     { href: "/life/travel", label: "旅行摄影", icon: Plane, count: counts[0], hint: "按年月归档的图文记录" },
     { href: "/life/wardrobe", label: "衣橱穿搭", icon: Shirt, count: counts[1], hint: "智能穿搭 + 天气推荐" },
-    { href: "/life/storage", label: "家庭仓储", icon: Boxes, count: counts[2], hint: "两段扫码入库，明细可导出 CSV" },
+    { href: "/life/storage", label: "家庭仓储", icon: Boxes, count: counts[2], hint: "二维码出入库 · 明细导出 · 借还超期预警" },
     { href: "/life/food", label: "餐饮", icon: Utensils, count: counts[3], hint: "节气家常菜 + 饮食记录" },
     { href: "/life/hobbies", label: "兴趣爱好", icon: Heart, count: counts[4], hint: "领域时间线 + 进度" },
     { href: "/life/garden", label: "园艺种植", icon: Sprout, count: counts[5], hint: "节气种植 + 养护提醒" },

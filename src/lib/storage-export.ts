@@ -11,6 +11,8 @@ export const STORAGE_EXPORT_COLUMNS = [
   { key: "room", label: "房间 / 区域" },
   { key: "position", label: "存放位置" },
   { key: "quantity", label: "数量" },
+  { key: "loaned", label: "借出中" },
+  { key: "available", label: "可用量" },
   { key: "barcode", label: "条码" },
   { key: "note", label: "备注" },
   { key: "visibility", label: "可见性" },

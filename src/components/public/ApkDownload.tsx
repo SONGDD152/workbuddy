@@ -19,18 +19,19 @@ import {
  * v1.3.0 起在原生层加系统指纹/面容解锁闸门（仅 Android 安装包）。
  * v1.4.0 补齐 CAMERA 权限与网页摄像头授权回调，App 内扫码 / 拍照可用。
  * v1.5.0 补上系统下载器：App 内导出仓储明细的 CSV 可以保存到「下载」目录。
+ * v1.6.0 支持保存网页直接生成的二维码 / 标签 PNG，打印导出在 App 内也能用。
  *
  * 版本升级时同步改三处：public/downloads/ 下的文件、下面的 APK 常量、
  * scripts/generate-pwa-assets.py 的 APK_URL（并重跑二维码）。
  */
 const APK = {
-  file: "xiaobaiguanjia-v1.5.0.apk",
-  href: "/downloads/xiaobaiguanjia-v1.5.0.apk",
-  version: "1.5.0",
-  size: "108 KB",
+  file: "xiaobaiguanjia-v1.6.0.apk",
+  href: "/downloads/xiaobaiguanjia-v1.6.0.apk",
+  version: "1.6.0",
+  size: "112 KB",
   packageId: "online.songdd.xbgj",
   releaseUrl:
-    "https://github.com/SONGDD152/workbuddy/releases/download/v1.5.0/xiaobaiguanjia-v1.5.0.apk",
+    "https://github.com/SONGDD152/workbuddy/releases/download/v1.6.0/xiaobaiguanjia-v1.6.0.apk",
 };
 
 const INSTALL_URL = "https://songdd.online/install";
@@ -151,7 +152,8 @@ export function ApkDownload() {
             验证之前不加载任何页面；没录入指纹、设备不支持或识别硬件异常时会自动跳过，不会把人锁死。
             仍是独立全屏窗口，没有地址栏，也不会跳到浏览器，国产手机不装 Chrome 也能用。
             内容来自 songdd.online，网页一更新 App 里同步生效。
-            这一版补上了摄像头授权和文件下载：扫码、拍照可用，家庭仓储点「导出明细」下载的 CSV 会保存到手机「下载」目录。
+            这一版补齐了文件保存：扫码、拍照可用；仓储「导出明细」的 CSV 与「打印二维码」的标签 PNG 都能存进手机「下载」目录。
+            物品和仓库二维码、消耗性 / 归还类出库、8 小时超期预警大屏都是网页功能，装上这一版就能直接用。
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
             <a

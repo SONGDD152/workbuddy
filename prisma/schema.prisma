@@ -10,6 +10,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum LoanType {
+  CONSUMABLE // 消耗性借出：用完即扣库存，不需要归还
+  RETURNABLE // 归还类借出：8 小时内应还，超期进预警大屏
+}
+
 enum Visibility {
   PUBLIC
   PRIVATE
@@ -91,6 +96,28 @@ model User {
   moments        Moment[]
   momentLikes    MomentLike[]
   momentComments MomentComment[]
+  stockLoans   StockLoan[]
+}
+
+/// 出库 / 借还流水。消耗性出库直接结束（无 dueAt），归还类才参与 8 小时预警。
+model StockLoan {
+  id             String    @id @default(cuid())
+  userId         String
+  itemId         String
+  warehouseName  String? // 借出时所属仓库名快照，删仓库后历史仍可读
+  type           LoanType
+  quantity       Int       @default(1)
+  borrower       String?
+  note           String?
+  lentAt         DateTime  @default(now())
+  dueAt          DateTime? // 归还类借出：lentAt + 8h + 累计延期
+  returnedAt     DateTime? // 归还时间；null = 仍在借出中
+  extensionHours Int       @default(0)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item           StorageItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, returnedAt, dueAt])
+  @@index([itemId, returnedAt])
 }
 
 // ===== 朋友圈 · 动态 =====
@@ -208,8 +235,11 @@ model StorageItem {
   image        String?
   note         String?
   visibility   Visibility      @default(PRIVATE)
+  // 物品档案二维码里的随机令牌。可空唯一：旧数据不破坏，首次查看二维码时惰性补码。
+  code         String?         @unique
   createdAt    DateTime        @default(now())
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loans        StockLoan[]
 
   @@index([userId])
   @@index([barcode])

@@ -43,14 +43,26 @@ export async function GET(req: Request) {
     wh: url.searchParams.get("wh") || "",
   };
 
-  const records = await prisma.storageItem.findMany({
-    where: { userId: uid },
-    include: { warehouse: { select: { name: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const [records, activeLoans] = await Promise.all([
+    prisma.storageItem.findMany({
+      where: { userId: uid },
+      include: { warehouse: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.stockLoan.findMany({
+      where: { userId: uid, type: "RETURNABLE", returnedAt: null },
+      select: { itemId: true, quantity: true },
+    }),
+  ]);
+
+  const loanedByItem = new Map<string, number>();
+  for (const l of activeLoans) {
+    loanedByItem.set(l.itemId, (loanedByItem.get(l.itemId) || 0) + l.quantity);
+  }
 
   const rows: StorageExportRow[] = records.map((it) => {
     const whName = it.warehouse?.name || "";
+    const loaned = loanedByItem.get(it.id) || 0;
     return {
       name: it.name,
       category: STORAGE_CATEGORY_LABEL[it.category] || it.category,
@@ -59,6 +71,8 @@ export async function GET(req: Request) {
       room: it.room && it.room !== whName ? it.room : "",
       position: it.position || "",
       quantity: it.quantity,
+      loaned,
+      available: Math.max(0, it.quantity - loaned),
       barcode: it.barcode || "",
       note: it.note || "",
       visibility: VISIBILITY_LABEL[it.visibility] || it.visibility,

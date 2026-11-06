@@ -3,6 +3,7 @@ package online.songdd.xbgj;
 import android.Manifest;
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -18,6 +19,8 @@ import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.MediaStore;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,6 +43,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.util.concurrent.Executor;
 
 /**
@@ -63,6 +70,8 @@ import java.util.concurrent.Executor;
  *
  * v1.5.0 增加 DownloadListener：网页点「导出明细 / 下载 CSV」时，用系统
  * DownloadManager 带上会话 Cookie 保存到「下载」目录，否则 WebView 默认静默丢弃下载。
+ * v1.6.0 再支持 data: 图片下载：二维码 / 批量标签这张 canvas 生成的 PNG
+ * 没有网络 URL，解码后由 MediaStore 写进「下载」，打印导出在 App 内才可用。
  *
  * 包内不打包任何网页代码，内容始终来自 https://songdd.online。
  */
@@ -145,7 +154,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         // 站点据此识别「这是 App 内」，隐藏网页版专属的返回主页等出口
         String baseUa = s.getUserAgentString();
-        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.5.0");
+        s.setUserAgentString((baseUa == null ? "" : baseUa) + " XiaoBaiGuanjiaApp/1.6.0");
         web.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
         web.setWebViewClient(new WebViewClient() {
@@ -155,6 +164,11 @@ public class MainActivity extends Activity {
                 String scheme = u.getScheme();
                 if ("mailto".equals(scheme) || "tel".equals(scheme) || "sms".equals(scheme)) {
                     launchExternal(u.toString());
+                    return true;
+                }
+                // canvas 生成的图片用 data: URL 触发下载；别把它当成网页导航，
+                // 否则 WebView 会试着加载一串 base64，下载事件也可能被吞掉。
+                if ("data".equalsIgnoreCase(scheme) || "blob".equalsIgnoreCase(scheme)) {
                     return true;
                 }
                 // 站内链接一律留在应用内，避免跳到系统浏览器
@@ -261,6 +275,12 @@ public class MainActivity extends Activity {
          */
         web.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
             Uri u = Uri.parse(url);
+            // 浏览器里 canvas 合成的二维码 / 标签 PNG 是 data: URL，
+            // DownloadManager 没有 URL 可下，只能解码后自己写进「下载」目录。
+            if ("data".equalsIgnoreCase(u.getScheme())) {
+                saveDataUrl(url, contentDisposition, mimeType);
+                return;
+            }
             if (!HOST.equals(u.getHost())) {
                 launchExternal(url);
                 return;
@@ -491,12 +511,12 @@ public class MainActivity extends Activity {
     /** 用系统下载器保存本站导出的 CSV；Cookie 必须手动带，否则接口会当作未登录。 */
     private void saveDownload(String url, String contentDisposition, String mimeType) {
         try {
-            String name = guessFileName(url, contentDisposition);
+            String name = guessFileName(url, contentDisposition, ".csv");
             DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
             String cookie = CookieManager.getInstance().getCookie(url);
             if (cookie != null && !cookie.isEmpty()) req.addRequestHeader("Cookie", cookie);
             req.addRequestHeader("Referer", SITE + "/");
-            req.setMimeType("text/csv");
+            req.setMimeType(mimeType == null || mimeType.isEmpty() ? "text/csv" : mimeType);
             req.setTitle(name);
             req.setDescription("小白管家 · 仓储明细");
             req.setNotificationVisibility(
@@ -525,8 +545,8 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** 优先用服务端给的 ASCII 文件名，解析不出再退到 URL 末段；一律保证 .csv 结尾。 */
-    private String guessFileName(String url, String disposition) {
+    /** 优先用 Content-Disposition 的文件名，解析不出再退到 URL 末段；补上正确的扩展名。 */
+    private String guessFileName(String url, String disposition, String defaultExt) {
         String name = "";
         if (disposition != null) {
             int i = disposition.toLowerCase().indexOf("filename=");
@@ -542,9 +562,65 @@ public class MainActivity extends Activity {
             name = last == null ? "" : last;
         }
         name = name.replace('/', '_').replace('\\', '_');
-        if (!name.toLowerCase().endsWith(".csv")) name = name + ".csv";
-        if (name.length() > 80) name = name.substring(name.length() - 80);
-        return name.isEmpty() ? "xiaobaiguanjia-storage.csv" : name;
+        if (!name.toLowerCase().endsWith(defaultExt.toLowerCase())) name = name + defaultExt;
+        if (name.length() > 90) name = name.substring(name.length() - 90);
+        return name.isEmpty() ? "xiaobaiguanjia" + defaultExt : name;
+    }
+
+    /**
+     * 保存 canvas 导出的 data: 图片（二维码标签 PNG / 单张二维码 PNG）。
+     * Android 10+ 用 MediaStore 写公共「下载」目录，无需任何权限；
+     * 低版本落到应用专属外部目录，同样不需要运行时权限。
+     */
+    private void saveDataUrl(String url, String disposition, String mimeType) {
+        OutputStream os = null;
+        try {
+            int comma = url.indexOf(',');
+            if (comma < 0) throw new IllegalArgumentException("bad data url");
+            String head = url.substring(5, comma).toLowerCase();
+            String payload = url.substring(comma + 1);
+            byte[] bytes = head.contains(";base64")
+                    ? Base64.decode(payload, Base64.DEFAULT)
+                    : URLDecoder.decode(payload, "UTF-8").getBytes("UTF-8");
+            String mime = (mimeType != null && !mimeType.isEmpty())
+                    ? mimeType
+                    : (head.contains("svg") ? "image/svg+xml" : "image/png");
+            String ext = mime.contains("svg") ? ".svg"
+                    : (mime.contains("jpeg") ? ".jpg" : ".png");
+            String name = guessFileName(url, disposition, ext);
+
+            String where;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                cv.put(MediaStore.Downloads.MIME_TYPE, mime);
+                cv.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                Uri target = getContentResolver().insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (target == null) throw new IllegalStateException("cannot create download");
+                os = getContentResolver().openOutputStream(target);
+                where = "手机「下载」目录";
+            } else {
+                File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (dir == null) throw new IllegalStateException("no external files dir");
+                if (!dir.exists() && !dir.mkdirs()) {
+                    throw new IllegalStateException("cannot create dir");
+                }
+                File f = new File(dir, name);
+                os = new FileOutputStream(f);
+                where = f.getAbsolutePath();
+            }
+            if (os == null) throw new IllegalStateException("cannot open output");
+            os.write(bytes);
+            os.flush();
+            Toast.makeText(this, "已保存 " + name + " → " + where, Toast.LENGTH_LONG).show();
+        } catch (Throwable t) {
+            Toast.makeText(this, "保存图片失败，可在预览里长按二维码保存", Toast.LENGTH_LONG).show();
+        } finally {
+            if (os != null) {
+                try { os.close(); } catch (Exception ignored) { }
+            }
+        }
     }
 
     /** 低版本等存储权限期间先把这次下载参数存下来。 */

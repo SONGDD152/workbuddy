@@ -19,14 +19,21 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   Check,
+  Printer,
+  QrCode as QrCodeIcon,
+  PackageMinus,
+  Clock3,
 } from "lucide-react";
 import { Button, Card, Modal, Input, Select, Badge, EmptyState } from "@/components/ui";
 import { ImageField } from "@/components/ImageField";
 import { Scanner } from "@/components/Scanner";
 import { QrCode, downloadQrPng } from "@/components/QrCode";
+import { StockLoanPanel } from "@/components/life/StockLoanPanel";
+import { loanedQuantity, type LoanInfo } from "@/lib/storage-loan";
 import { cn } from "@/lib/utils";
 import {
   warehouseQrValue,
+  itemQrValue,
   isWarehouseQr,
   type WarehouseInfo,
 } from "@/lib/warehouse";
@@ -41,6 +48,8 @@ import {
   deleteWarehouse,
   resolveWarehouse,
   autoStoreItem,
+  ensureItemCode,
+  regenerateItemCode,
 } from "@/lib/actions";
 import { STORAGE_CATEGORY_LABEL, VISIBILITY_LABEL } from "@/lib/constants";
 import {
@@ -65,6 +74,7 @@ type Item = {
   warehouseId: string | null;
   quantity: number;
   createdAt: string;
+  code: string | null;
 };
 
 type Notice = { text: string; tone: "ok" | "warn" };
@@ -88,9 +98,11 @@ const EMPTY_FORM = {
 export function StorageClient({
   initial,
   warehouses,
+  loans,
 }: {
   initial: Item[];
   warehouses: WarehouseInfo[];
+  loans: LoanInfo[];
 }) {
   const router = useRouter();
   const [items, setItems] = React.useState(initial);
@@ -104,6 +116,10 @@ export function StorageClient({
   const [busy, setBusy] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<Notice | null>(null);
   const [confirmBox, setConfirmBox] = React.useState<ConfirmBox | null>(null);
+
+  // 物品档案二维码
+  const [qrItem, setQrItem] = React.useState<Item | null>(null);
+  const [loanOpen, setLoanOpen] = React.useState(false);
 
   // 导出明细
   const [exportOpen, setExportOpen] = React.useState(false);
@@ -145,6 +161,7 @@ export function StorageClient({
   const toExportRow = React.useCallback(
     (it: Item): StorageExportRow => {
       const whName = warehouses.find((w) => w.id === it.warehouseId)?.name || "";
+      const loaned = loanedQuantity(loans, it.id);
       return {
         name: it.name,
         category: STORAGE_CATEGORY_LABEL[it.category] || it.category,
@@ -152,13 +169,15 @@ export function StorageClient({
         room: it.room && it.room !== whName ? it.room : "",
         position: it.position || "",
         quantity: it.quantity || 1,
+        loaned,
+        available: Math.max(0, (it.quantity || 1) - loaned),
         barcode: it.barcode || "",
         note: it.note || "",
         visibility: VISIBILITY_LABEL[it.visibility] || it.visibility,
         createdAt: formatBeijing(it.createdAt),
       };
     },
-    [warehouses]
+    [warehouses, loans]
   );
 
   const filtered = items.filter((it) =>
@@ -186,6 +205,59 @@ export function StorageClient({
     }
     return { total: items.length, byCat, unassigned };
   }, [items]);
+
+  // ---------- 物品档案二维码 ----------
+  async function openItemQr(it: Item) {
+    let code = it.code;
+    if (!code) {
+      try {
+        const r = await ensureItemCode(it.id);
+        code = r.code;
+        setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, code } : x)));
+      } catch (e: any) {
+        show(e?.message || "二维码生成失败", "warn");
+        return;
+      }
+    }
+    if (!code) {
+      show("二维码生成失败，请刷新页面后重试", "warn");
+      return;
+    }
+    setQrItem({ ...it, code });
+  }
+  async function downloadItemQr(it: Item) {
+    if (!it.code) return;
+    try {
+      await downloadQrPng(itemQrValue(it.code), `item-${it.code}.png`);
+      show("物品二维码 PNG 已开始下载；App 内 v1.6.0 起会存进「下载」目录");
+    } catch (e: any) {
+      show(e?.message || "下载失败，可直接截图保存这张大图", "warn");
+    }
+  }
+  async function copyItemCode(it: Item) {
+    if (!it.code) return;
+    const v = itemQrValue(it.code);
+    try {
+      await navigator.clipboard.writeText(v);
+      show("物品码已复制，可在扫码框里手动粘贴");
+    } catch {
+      show(`无法自动复制，请手动输入：${v}`, "warn");
+    }
+  }
+  async function rotateItemCode(it: Item) {
+    setWhBusy(true);
+    try {
+      const r = await regenerateItemCode(it.id);
+      setQrItem({ ...it, code: r.code });
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, code: r.code } : x)));
+      router.refresh();
+      show("物品码已重新生成，请下载新贴纸；旧贴纸立即失效");
+    } catch (e: any) {
+      show(e?.message || "重新生成失败", "warn");
+    } finally {
+      setWhBusy(false);
+    }
+  }
 
   // ---------- 导出明细 ----------
   async function copyExportRows() {
@@ -358,7 +430,7 @@ export function StorageClient({
   async function downloadQr(w: WarehouseInfo) {
     try {
       await downloadQrPng(warehouseQrValue(w.code), `warehouse-${w.code}.png`);
-      show("二维码 PNG 已开始下载；App 内若没反应，直接截图保存这张大图也能扫");
+      show("二维码 PNG 已开始下载；v1.6.0 起 App 内会存到手机「下载」目录，旧版可截图保存这张大图");
     } catch (e: any) {
       show(e?.message || "下载失败，可直接截图保存二维码", "warn");
     }
@@ -436,7 +508,9 @@ export function StorageClient({
       show(
         r.mode === "created"
           ? `已入库「${r.name}」→ ${r.warehouse}（数量 1），可继续扫下一件`
-          : `「${r.name}」已在 ${r.warehouse}，数量 +1 → ${r.quantity}`
+          : r.mode === "restock"
+            ? `「${r.name}」已归入 ${r.warehouse}，数量 → ${r.quantity}`
+            : `「${r.name}」已在 ${r.warehouse}，数量 +1 → ${r.quantity}`
       );
       router.refresh();
     });
@@ -506,6 +580,9 @@ export function StorageClient({
           <Button onClick={startIntake}>
             <ScanLine size={16} /> 扫码入库
           </Button>
+          <Button variant="outline" onClick={() => setLoanOpen(true)}>
+            <PackageMinus size={16} /> 出库 / 借还
+          </Button>
           <Button variant="outline" onClick={() => setScan("lookup")}>
             <Search size={16} /> 扫码查物品
           </Button>
@@ -522,6 +599,18 @@ export function StorageClient({
           >
             <FileSpreadsheet size={16} /> 导出明细
           </Button>
+          <Link
+            href="/life/storage/labels"
+            className="tap inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2"
+          >
+            <Printer size={16} /> 打印二维码
+          </Link>
+          <Link
+            href="/life/storage/alerts"
+            className="tap inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2"
+          >
+            <Clock3 size={16} /> 预警大屏
+          </Link>
         </div>
       </div>
 
@@ -538,8 +627,8 @@ export function StorageClient({
       )}
 
       <p className="rounded-xl border border-border bg-surface px-4 py-3 text-xs leading-relaxed text-muted">
-        <strong className="font-medium text-fg">入库流程</strong>：先扫贴在仓库上的二维码，再扫物品条码，
-        物品自动进对应仓库；同一条码重复扫会累加数量。标为「公开」的物品会出现在
+        <strong className="font-medium text-fg">入库流程</strong>：先扫贴在仓库上的二维码，再扫物品条码或自己打印的物品档案码，
+        物品自动进对应仓库；同一件重复扫会累加数量。标为「公开」的物品会出现在
         <Link href="/explore" target="_blank" rel="noopener noreferrer" className="mx-1 font-medium text-brand hover:underline">
           公开内容广场
         </Link>
@@ -602,6 +691,14 @@ export function StorageClient({
           </div>
         )}
       </section>
+
+      <StockLoanPanel
+        items={items.map(({ id, name, quantity, code, barcode }) => ({ id, name, quantity, code, barcode }))}
+        loans={loans}
+        open={loanOpen}
+        setOpen={setLoanOpen}
+        show={show}
+      />
 
       {/* 搜索 + 筛选 */}
       <div className="flex flex-wrap gap-2">
@@ -699,6 +796,9 @@ export function StorageClient({
                     {it.barcode && <p className="text-xs text-muted">条码：{it.barcode}</p>}
                     {it.note && <p className="mt-1 line-clamp-2 text-xs">{it.note}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <button className="text-xs font-medium text-brand" onClick={() => openItemQr(it)}>
+                        <QrCodeIcon size={12} className="inline" /> 二维码
+                      </button>
                       <button className="text-xs text-muted" onClick={() => openEdit(it)}>
                         <Pencil size={12} className="inline" /> 编辑
                       </button>
@@ -842,12 +942,51 @@ export function StorageClient({
         )}
       </Modal>
 
+      {/* 物品档案二维码 */}
+      <Modal open={!!qrItem} onClose={() => setQrItem(null)} title={`物品二维码 · ${qrItem?.name ?? ""}`}>
+        {qrItem?.code && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-2xl border border-border bg-white p-4">
+              <QrCode value={itemQrValue(qrItem.code)} size={220} className="rounded-lg" />
+            </div>
+            <p className="text-center text-sm font-medium">{qrItem.name}</p>
+            <p className="text-center text-xs text-muted">
+              贴在这件物品上；出库时扫它定位物品，入库时扫仓库码 + 它即可
+            </p>
+            <div className="grid w-full grid-cols-2 gap-2">
+              <Button onClick={() => downloadItemQr(qrItem)}>
+                <Download size={16} /> 下载 PNG
+              </Button>
+              <Button variant="outline" onClick={() => copyItemCode(qrItem)}>
+                <Copy size={16} /> 复制码
+              </Button>
+            </div>
+            <div className="grid w-full grid-cols-2 gap-2">
+              <Button variant="outline" onClick={() => rotateItemCode(qrItem)} disabled={whBusy}>
+                <RefreshCw size={16} /> 重新生成
+              </Button>
+              <Link
+                href="/life/storage/labels"
+                className="tap inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium transition hover:bg-surface-2"
+              >
+                <Printer size={16} /> 批量打印
+              </Link>
+            </div>
+            <p className="text-xs leading-relaxed text-muted">
+              二维码内容是 <span className="font-mono">{itemQrValue(qrItem.code)}</span>，
+              只是一枚随机令牌，不含名称、位置或账号信息。
+              想一次打印多个物品和仓库的贴纸，点「批量打印」。
+            </p>
+          </div>
+        )}
+      </Modal>
+
       {/* 导出明细 */}
       <Modal open={exportOpen} onClose={() => setExportOpen(false)} title="导出仓储明细">
         <div className="space-y-4">
           <p className="text-xs leading-relaxed text-muted">
-            包含 <strong className="font-medium text-fg">物品名称、类型、所属仓库、房间 / 区域、存放位置、数量、条码、备注、可见性、登记时间</strong>
-            共 10 列；只导出当前账号自己的物品，不含照片，也不会带上其它账号的数据。
+            包含 <strong className="font-medium text-fg">物品名称、类型、所属仓库、房间 / 区域、存放位置、数量、借出中、可用量、条码、备注、可见性、登记时间</strong>
+            共 12 列；只导出当前账号自己的物品，不含照片，也不会带上其它账号的数据。
           </p>
 
           <div>
@@ -889,7 +1028,7 @@ export function StorageClient({
               </p>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full min-w-[760px] text-left text-xs">
+                <table className="w-full min-w-[940px] text-left text-xs">
                   <thead className="bg-surface-2 text-muted">
                     <tr>
                       {STORAGE_EXPORT_HEADERS.map((h) => (
@@ -932,7 +1071,7 @@ export function StorageClient({
 
           <p className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-[11px] leading-relaxed text-muted">
             CSV 带 UTF-8 BOM，Excel / WPS / 数字表格双击打开中文不乱码；「复制明细」是制表符文本，粘进表格会自动分列。
-            <strong className="font-medium text-fg">App 内保存下载文件需要 v1.5.0 及以上</strong>，旧版可先用「复制明细」粘贴到微信或备忘录。
+            <strong className="font-medium text-fg">App 内保存下载文件需要 v1.6.0（当前版）</strong>，旧版可先用「复制明细」粘贴到微信或备忘录。
           </p>
         </div>
       </Modal>

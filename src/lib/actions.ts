@@ -2,7 +2,8 @@
 import { randomBytes } from "node:crypto";
 import { getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { parseWarehouseCode } from "@/lib/warehouse";
+import { parseWarehouseCode, parseItemCode } from "@/lib/warehouse";
+import { RETURN_WINDOW_HOURS, EXTENSION_OPTIONS } from "@/lib/storage-loan";
 
 async function uid(): Promise<string> {
   const id = await getUserId();
@@ -106,6 +107,11 @@ function newWarehouseCode(): string {
   return randomBytes(9).toString("base64url"); // 12 字符，二维码短、好扫
 }
 
+/** 物品档案码与仓库码同规格，但前缀不同，扫码时不会混淆 */
+function newItemCode(): string {
+  return randomBytes(9).toString("base64url");
+}
+
 export async function createWarehouse(input: any) {
   const userId = await uid();
   const name = String(input?.name ?? "").trim().slice(0, 40);
@@ -178,6 +184,30 @@ export async function autoStoreItem(warehouseQr: string, itemCode: string) {
   if (!barcode) throw new Error("物品码为空");
   if (parseWarehouseCode(barcode)) throw new Error("扫到的是仓库码，请扫物品上的条码");
 
+  // 扫的是自己打印的物品档案码：把这件物品归到当前仓库并数量 +1，
+  // 而不是把「XBGJ-IT:...」当成商品条码新建一条占位记录。
+  const itemToken = parseItemCode(barcode);
+  if (itemToken) {
+    const item = await prisma.storageItem.findFirst({
+      where: { userId, code: itemToken },
+      select: { id: true, name: true, quantity: true, warehouseId: true },
+    });
+    if (!item) throw new Error("这张物品码不属于当前账号，请先在物品档案里建档");
+    const updated = await prisma.storageItem.update({
+      where: { id: item.id },
+      data: { warehouseId: wh.id, quantity: { increment: 1 } },
+      select: { id: true, name: true, quantity: true },
+    });
+    return {
+      mode: (item.warehouseId === wh.id ? "increment" : "restock") as "increment" | "restock",
+      warehouse: wh.name,
+      itemId: updated.id,
+      name: updated.name,
+      barcode,
+      quantity: updated.quantity,
+    };
+  }
+
   const existing = await prisma.storageItem.findFirst({
     where: { userId, barcode, warehouseId: wh.id },
     select: { id: true, name: true, quantity: true },
@@ -209,6 +239,7 @@ export async function autoStoreItem(warehouseQr: string, itemCode: string) {
       warehouseId: wh.id,
       quantity: 1,
       visibility: "PRIVATE",
+      code: newItemCode(),
     },
     select: { id: true, name: true, quantity: true },
   });
@@ -239,6 +270,7 @@ export async function createStorageItem(input: any) {
       image: input.image || null,
       note: input.note || null,
       visibility: input.visibility || "PRIVATE",
+      code: newItemCode(),
     },
   });
 }
@@ -268,6 +300,164 @@ export async function updateStorageItem(id: string, patch: any) {
 export async function deleteStorageItem(id: string) {
   const userId = await uid();
   return prisma.storageItem.deleteMany({ where: { id, userId } });
+}
+
+// ===== 家庭仓储 · 物品档案码 =====
+
+/**
+ * 旧数据在建码功能上线前没有 code，首次点「二维码」时补一枚。
+ * updateMany 带 code: null 条件，避免两个设备同时补码互相覆盖。
+ */
+export async function ensureItemCode(itemId: string) {
+  const userId = await uid();
+  const item = await prisma.storageItem.findFirst({
+    where: { id: itemId, userId },
+    select: { code: true },
+  });
+  if (!item) throw new Error("物品不存在");
+  if (item.code) return { code: item.code };
+  const code = newItemCode();
+  const r = await prisma.storageItem.updateMany({
+    where: { id: itemId, userId, code: null },
+    data: { code },
+  });
+  if (r.count > 0) return { code };
+  const again = await prisma.storageItem.findFirst({
+    where: { id: itemId, userId },
+    select: { code: true },
+  });
+  return { code: again?.code || "" };
+}
+
+/** 贴纸丢了 / 码泄露时换一枚；旧贴纸立即失效，物品本身不受影响 */
+export async function regenerateItemCode(itemId: string) {
+  const userId = await uid();
+  const code = newItemCode();
+  const r = await prisma.storageItem.updateMany({
+    where: { id: itemId, userId },
+    data: { code },
+  });
+  if (r.count === 0) throw new Error("物品不存在");
+  return { code };
+}
+
+/** 出库扫码：物品档案码或商品条码都能定位到自己的物品 */
+export async function resolveItemByScan(text: string) {
+  const userId = await uid();
+  const raw = String(text ?? "").trim();
+  if (!raw) throw new Error("扫码内容为空");
+  if (parseWarehouseCode(raw)) throw new Error("扫到的是仓库二维码，出库请扫物品码或商品条码");
+  const token = parseItemCode(raw);
+  const item = await prisma.storageItem.findFirst({
+    where: token ? { userId, code: token } : { userId, barcode: raw },
+    select: { id: true, name: true, quantity: true, barcode: true, code: true, warehouseId: true },
+  });
+  if (!item) {
+    throw new Error(token ? "这张物品码不属于当前账号" : `没有条码为 ${raw} 的物品，可在下拉框里手动选`);
+  }
+  return item;
+}
+
+// ===== 家庭仓储 · 出库 / 借还 =====
+
+/**
+ * 消耗性借出：直接扣库存，不产生应还时间；
+ * 归还类借出：不扣库存，8 小时后应还，超期进预警大屏。
+ * 校验与写流水放在同一事务里，避免同时点两次把同一件东西借超。
+ */
+export async function createLoan(input: any) {
+  const userId = await uid();
+  const itemId = String(input?.itemId ?? "").trim();
+  if (!itemId) throw new Error("请先选择或扫描物品");
+  const type: "CONSUMABLE" | "RETURNABLE" =
+    input?.type === "CONSUMABLE" ? "CONSUMABLE" : "RETURNABLE";
+  const quantity = safeQuantity(input?.quantity);
+  const borrower = String(input?.borrower ?? "").trim().slice(0, 40) || null;
+  const note = String(input?.note ?? "").trim().slice(0, 200) || null;
+
+  return prisma.$transaction(async (tx) => {
+    const item = await tx.storageItem.findFirst({
+      where: { id: itemId, userId },
+      select: { id: true, name: true, quantity: true, warehouseId: true },
+    });
+    if (!item) throw new Error("物品不存在或不属于当前账号");
+
+    if (type === "CONSUMABLE") {
+      const dec = await tx.storageItem.updateMany({
+        where: { id: itemId, userId, quantity: { gte: quantity } },
+        data: { quantity: { decrement: quantity } },
+      });
+      if (dec.count === 0) throw new Error("库存不足，不能出库这么多件");
+    } else {
+      const active = await tx.stockLoan.aggregate({
+        where: { userId, itemId, type: "RETURNABLE", returnedAt: null },
+        _sum: { quantity: true },
+      });
+      const loaned = active._sum.quantity ?? 0;
+      if (item.quantity - loaned < quantity) {
+        throw new Error(`可用量不足：共 ${item.quantity} 件，已借出 ${loaned} 件`);
+      }
+    }
+
+    const wh = item.warehouseId
+      ? await tx.warehouse.findFirst({
+          where: { id: item.warehouseId, userId },
+          select: { name: true },
+        })
+      : null;
+    const lentAt = new Date();
+    const dueAt = type === "RETURNABLE"
+      ? new Date(lentAt.getTime() + RETURN_WINDOW_HOURS * 3600_000)
+      : null;
+    const loan = await tx.stockLoan.create({
+      data: {
+        userId, itemId, type, quantity, borrower, note, lentAt, dueAt,
+        warehouseName: wh?.name ?? null,
+        extensionHours: 0,
+      },
+      select: { id: true, dueAt: true },
+    });
+    return {
+      id: loan.id,
+      itemName: item.name,
+      type,
+      dueAt: dueAt?.toISOString() ?? null,
+    };
+  });
+}
+
+/** 归还：只关闭流水，不改库存（归还类出库本来就没扣） */
+export async function returnLoan(id: string) {
+  const userId = await uid();
+  const r = await prisma.stockLoan.updateMany({
+    where: { id, userId, type: "RETURNABLE", returnedAt: null },
+    data: { returnedAt: new Date() },
+  });
+  if (r.count === 0) throw new Error("这条借出记录不存在或已经归还");
+  return { ok: true };
+}
+
+/** 延期 4 / 8 / 24 / 48 小时；已超期时从「现在」顺延，避免延完还显示超期 */
+export async function extendLoan(id: string, hoursRaw: number) {
+  const userId = await uid();
+  const hours = Number(hoursRaw);
+  if (!(EXTENSION_OPTIONS as readonly number[]).includes(hours)) {
+    throw new Error("延期时长只能是 4 / 8 / 24 / 48 小时");
+  }
+  return prisma.$transaction(async (tx) => {
+    const loan = await tx.stockLoan.findFirst({
+      where: { id, userId, type: "RETURNABLE", returnedAt: null },
+      select: { id: true, dueAt: true, extensionHours: true },
+    });
+    if (!loan || !loan.dueAt) throw new Error("这条借出记录不存在或已归还");
+    const base = Math.max(loan.dueAt.getTime(), Date.now());
+    const dueAt = new Date(base + hours * 3600_000);
+    await tx.stockLoan.update({
+      where: { id: loan.id },
+      data: { dueAt, extensionHours: { increment: hours } },
+    });
+    return { dueAt: dueAt.toISOString(), extensionHours: loan.extensionHours + hours };
+  });
 }
 
 // ===== 餐饮 =====
