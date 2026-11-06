@@ -16,3 +16,8 @@ android.keystore
 *.p12
 __pycache__/
 *.pyc
+android-native/app/android.keystore
+android-native/.gradle/
+android-native/build/
+android-native/app/build/
+android-native/local.properties
