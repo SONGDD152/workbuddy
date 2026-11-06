@@ -22,7 +22,7 @@ import { ApkDownload } from "@/components/public/ApkDownload";
 export const metadata: Metadata = {
   title: `安装到手机与电脑 · ${profile.name}`,
   description:
-    "推荐在浏览器里一键安装网页应用，全平台通用、不用下载文件；Android 也可下载签名安装包 APK。手机电脑共用同一份数据。",
+    "推荐在浏览器里一键安装网页应用，全平台通用、不用下载文件；Android 也可下载原生外壳安装包 APK，独立窗口无地址栏。手机电脑共用同一份数据。",
 };
 
 const steps = [
@@ -66,6 +66,7 @@ const gains = [
 const limits = [
   "网页应用不需要 APK / IPA，也没有上架商店；Android 安装包在下方单独下载",
   "APK 仅支持 Android 7.0+，iPhone 和电脑请用网页应用方式",
+  "APK 是原生外壳，界面仍是网页而非原生控件，但没有地址栏、不跳浏览器、不依赖 Chrome",
   "登录、同步、发动态、点赞都需要联网",
   "微信内置浏览器不能直接安装或下载 APK，要先「在浏览器打开」",
   "iOS 上无法后台推送；通知、蓝牙等原生能力受限",
@@ -181,9 +182,9 @@ export default function InstallPage() {
         <section className="border-b border-border py-14">
           <div className="mb-7">
             <p className="mb-3 text-sm font-medium tracking-widest text-brand uppercase">
-              方式二 · 仅 Android · 需要下载文件
+              方式二 · 仅 Android · 原生外壳
             </p>
-            <h2 className="text-2xl font-bold tracking-tight">下载签名安装包 APK</h2>
+            <h2 className="text-2xl font-bold tracking-tight">下载原生安装包 APK</h2>
           </div>
           <ApkDownload />
         </section>

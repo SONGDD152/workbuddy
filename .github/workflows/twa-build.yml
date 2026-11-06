@@ -1,12 +1,8 @@
 name: Build Android APK (TWA)
 
+# 已由 android-native/ 的 WebView 原生外壳取代；保留供历史复现，不再随 push 自动构建。
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'android/twa-manifest.json'
-      - '.github/workflows/twa-build.yml'
 
 jobs:
   build:
