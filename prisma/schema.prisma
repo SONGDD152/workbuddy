@@ -167,7 +167,8 @@ model Travel {
   title       String
   date        DateTime
   location    String?
-  description String?
+  description String? // 旅行记录（公开广场会展示）
+  review      String? // 回看心得（私密，不进公开白名单）
   images      String[]   @default([])
   visibility  Visibility @default(PRIVATE)
   createdAt   DateTime   @default(now())

@@ -71,7 +71,16 @@ export const MODULES: ModuleGroup[] = [
       },
     ],
     items: [
-      { href: "/life/travel", label: "旅行摄影", icon: Plane, hint: "按年月归档的图文记录" },
+      {
+        href: "/life/travel",
+        label: "旅行摄影",
+        icon: Plane,
+        hint: "按年月归档的图文记录",
+        children: [
+          { href: "/life/travel/new", label: "增加旅行记录" },
+          { href: "/life/travel/history", label: "浏览历史旅行记录" },
+        ],
+      },
       { href: "/life/food", label: "餐饮", icon: Utensils, hint: "节气家常菜 + 饮食记录" },
       { href: "/life/hobbies", label: "兴趣爱好", icon: Heart, hint: "领域时间线 + 进度" },
       { href: "/life/garden", label: "园艺种植", icon: Sprout, hint: "节气种植 + 养护提醒" },
