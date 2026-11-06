@@ -235,14 +235,17 @@ model StorageItem {
   image        String?
   note         String?
   visibility   Visibility      @default(PRIVATE)
-  // 物品档案二维码里的随机令牌。可空唯一：旧数据不破坏，首次查看二维码时惰性补码。
-  code         String?         @unique
+  // 物品档案二维码里的随机令牌。可空：旧数据不破坏，首次查看二维码时惰性补码。
+  // 刻意不加 @unique —— 给已有表加唯一约束会触发 db push 的数据丢失保护，
+  // 非交互构建直接失败；72bit 随机码 + 查询一律带 userId，碰撞风险可忽略。
+  code         String?
   createdAt    DateTime        @default(now())
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   loans        StockLoan[]
 
   @@index([userId])
   @@index([barcode])
+  @@index([code])
   @@index([warehouseId])
   @@index([userId, barcode])
 }
