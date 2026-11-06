@@ -21,13 +21,17 @@ jobs:
 
       - name: Use runner Android SDK
         run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          SDKMANAGER=$(find /usr/local/lib/android/sdk/cmdline-tools -name sdkmanager -type f | head -1)
-          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          SDK=/usr/local/lib/android/sdk
+          echo "ANDROID_HOME=$SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
+          SDKMANAGER=$(find "$SDK/cmdline-tools" -name sdkmanager -type f | head -1)
+          yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses > /dev/null 2>&1 || true
+          ln -sfn "$(dirname "$SDKMANAGER")" "$SDK/bin"
+          "$SDKMANAGER" --sdk_root="$SDK" "platforms;android-35" "build-tools;35.0.0" > /dev/null 2>&1 || true
           mkdir -p "$HOME/.bubblewrap"
-          printf '{"jdkPath":"%s","androidSdkPath":"%s"}' "$JAVA_HOME" "$ANDROID_HOME" > "$HOME/.bubblewrap/config.json"
-          echo "sdk ready: $ANDROID_HOME | jdk: $JAVA_HOME"
+          printf '{"jdkPath":"%s","androidSdkPath":"%s"}' "$JAVA_HOME" "$SDK" > "$HOME/.bubblewrap/config.json"
+          echo "sdk=$SDK jdk=$JAVA_HOME"
+          ls "$SDK"
 
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
