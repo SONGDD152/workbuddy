@@ -31,7 +31,7 @@ const steps = [
     lines: [
       "用 Chrome / Edge / 三星浏览器打开本页",
       "点「立即安装到设备」，或菜单里的「安装应用」",
-      "确认后主屏幕出现「管家小白」图标",
+      "确认后主屏幕出现「小白管家」图标",
     ],
   },
   {
@@ -143,7 +143,7 @@ export default function InstallPage() {
               <p className="mt-3 text-center text-sm font-medium">扫一扫，打开安装页</p>
               <a
                 href="/qr-install.png"
-                download="管家小白-安装二维码.png"
+                download="小白管家-安装二维码.png"
                 className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted transition hover:text-brand"
               >
                 <Download size={13} /> 保存二维码图片

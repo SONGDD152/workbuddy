@@ -11,7 +11,7 @@
  * 修改本文件后请递增 CACHE 版本号，旧缓存会在 activate 时清理。
  * ========================================================================== */
 
-const CACHE = "songdd-static-v4";
+const CACHE = "songdd-static-v5";
 const STATIC_PATHS = [
   "/_next/static/",
   "/icons/",
@@ -49,7 +49,7 @@ function offlinePage() {
   const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>暂时离线 · 管家小白</title>
+<title>暂时离线 · 小白管家</title>
 <style>
   :root{color-scheme:light}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;

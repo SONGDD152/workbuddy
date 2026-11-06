@@ -3,13 +3,13 @@ import "./globals.css";
 import { PwaRegister } from "@/components/public/PwaRegister";
 
 export const metadata: Metadata = {
-  title: "管家小白 · 个人生活空间",
+  title: "小白管家 · 个人生活空间",
   description: "生活、图书馆、工作与朋友圈，装到手机和电脑的个人空间。",
-  applicationName: "管家小白",
+  applicationName: "小白管家",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "管家小白",
+    title: "小白管家",
     statusBarStyle: "default",
   },
   icons: {
