@@ -40,7 +40,7 @@ export function WeatherBox({
         <span>
           {info.temp}℃ {info.desc}
           {info.rain && (
-            <span className="ml-2 inline-flex items-center gap-1 text-blue-500">
+            <span className="ml-2 inline-flex items-center gap-1 text-brand">
               <CloudRain size={14} /> 有降水
             </span>
           )}

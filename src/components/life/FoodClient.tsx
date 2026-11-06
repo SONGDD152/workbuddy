@@ -111,7 +111,7 @@ export function FoodClient({ initial }: { initial: Rec[] }) {
             <Card key={d.name}>
               <div className="flex items-center justify-between">
                 <p className="font-medium">{d.name}</p>
-                <Badge className={d.burden === "高" ? "bg-red-500/15 text-red-500" : d.burden === "中" ? "bg-amber-500/15 text-amber-600" : "bg-green-500/15 text-green-600"}>
+                <Badge className={d.burden === "高" ? "bg-red-500/15 text-red-500" : d.burden === "中" ? "bg-brand/10 text-brand" : "bg-green-500/15 text-green-600"}>
                   油糖负担 {d.burden}
                 </Badge>
               </div>
@@ -169,7 +169,7 @@ export function FoodClient({ initial }: { initial: Rec[] }) {
 
       {/* 每日小结 */}
       <Card className="flex items-center gap-3">
-        <Flame size={20} className="text-orange-500" />
+        <Flame size={20} className="text-brand" />
         <div>
           <p className="font-medium">今日摄入概览</p>
           <p className="text-sm text-muted">{totalCal} kcal · {today.length} 餐记录</p>

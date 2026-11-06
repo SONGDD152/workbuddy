@@ -11,7 +11,7 @@
  * 修改本文件后请递增 CACHE 版本号，旧缓存会在 activate 时清理。
  * ========================================================================== */
 
-const CACHE = "songdd-static-v5";
+const CACHE = "songdd-static-v6";
 const STATIC_PATHS = [
   "/_next/static/",
   "/icons/",
@@ -54,13 +54,13 @@ function offlinePage() {
   :root{color-scheme:light}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
        font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-       background:#eef8ff;color:#1c1917;padding:24px;text-align:center}
+       background:#e1eff7;color:#284152;padding:24px;text-align:center}
   .box{max-width:28rem}
   .mark{font-size:2.5rem;color:#5aa9e6}
   h1{font-size:1.35rem;margin:1rem 0 .5rem}
-  p{color:#6d8799;line-height:1.8;font-size:.95rem;margin:.25rem 0}
+  p{color:#4f6f85;line-height:1.8;font-size:.95rem;margin:.25rem 0}
   button{margin-top:1.75rem;padding:.7rem 1.6rem;border:0;border-radius:999px;
-         background:#5aa9e6;color:#fff;font-size:.95rem;cursor:pointer}
+         background:#2f7cb5;color:#fff;font-size:.95rem;cursor:pointer}
 </style></head>
 <body><div class="box">
   <div class="mark">◆</div>

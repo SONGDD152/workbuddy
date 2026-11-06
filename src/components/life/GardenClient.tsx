@@ -165,7 +165,7 @@ export function GardenClient({ vegetables, plants }: { vegetables: Veg[]; plants
                   )}
                   {p.note && <p className="mt-1 line-clamp-2 text-sm">{p.note}</p>}
                   {r && (
-                    <p className="mt-2 flex items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-600">
+                    <p className="mt-2 flex items-center gap-1 rounded-lg bg-brand/10 px-2 py-1 text-xs text-brand">
                       <AlertTriangle size={12} /> {r}
                     </p>
                   )}
